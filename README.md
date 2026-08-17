@@ -177,3 +177,27 @@ willing to send takedowns over exactly that.
 - **Angles come from a 2-component PCA.** It measurably clusters related words,
   but t-SNE or UMAP would cluster harder. `compute_layout` in `build_data.py` is
   the only thing to change.
+
+## Deploying
+
+Pushing to `main` triggers `.github/workflows/deploy.yml`, which regenerates the
+game data from GloVe, runs the tests, builds the site and publishes it to GitHub
+Pages.
+
+The data is not committed — 75MB of binaries would sit in git history forever and
+every rebuild would add another copy. CI downloads the vectors once and caches
+them, so only the first run pays the 862MB download.
+
+**One-time setup:** in the repo, go to *Settings → Pages → Build and deployment*
+and set **Source** to **GitHub Actions**. Without this the workflow builds and
+then fails at the deploy step.
+
+The base path is set by `PAGES_BASE` in the workflow and must match the repo
+name. Rename the repo and you must change it, or every asset 404s.
+
+### What deploying implies
+
+Publishing the site publishes the answers. Each puzzle file contains its own
+answer in the header, and future puzzles are downloadable as soon as they are
+built. This is true of every game in this genre — it is why the honour system is
+the actual mechanic. Moving scoring behind an API is the only real fix.

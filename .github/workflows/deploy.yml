@@ -1,0 +1,85 @@
+name: Deploy to GitHub Pages
+
+# The game data (75MB across 216 puzzle files) is not committed - binaries that
+# large would live in git history forever, and every rebuild would add another
+# copy. It is regenerated here instead, from the same GloVe vectors and the same
+# pipeline used locally, so what ships is always what tools/build_data.py
+# produces.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Let a running deploy finish rather than cancelling it half-published.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      # 990MB extracted. Cached because re-downloading 862MB on every push is
+      # slower than restoring it, and it never changes.
+      - name: Restore GloVe vectors
+        id: glove
+        uses: actions/cache@v4
+        with:
+          path: .tooling/glove.6B.300d.txt
+          key: glove-6b-300d-v1
+
+      - name: Download GloVe vectors
+        if: steps.glove.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p .tooling
+          curl -sSfL -o glove.zip \
+            https://huggingface.co/stanfordnlp/glove/resolve/main/glove.6B.zip
+          unzip -o glove.zip glove.6B.300d.txt -d .tooling/
+          rm glove.zip
+
+      - name: Build game data
+        run: |
+          pip install --quiet numpy
+          python tools/build_data.py
+
+      - name: Install, test and build
+        working-directory: web
+        env:
+          # Project sites are served from /<repo>/, not the domain root.
+          PAGES_BASE: /semantle_bp/
+        run: |
+          npm ci
+          npm test
+          npm run build
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

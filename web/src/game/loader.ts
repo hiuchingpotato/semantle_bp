@@ -1,7 +1,10 @@
 import { parseLayout, parsePuzzle } from "./format";
 import type { Layout, Manifest, Puzzle } from "./types";
 
-const DATA_ROOT = "/data";
+// Relative to the deployed base, not the domain root: on GitHub Pages the site
+// lives at /<repo>/, so a hard-coded "/data" would 404. BASE_URL always ends in
+// a slash, and is "/" during local development.
+const DATA_ROOT = `${import.meta.env.BASE_URL}data`;
 
 /**
  * The vocabulary and the layout are the same for every puzzle, so they are
