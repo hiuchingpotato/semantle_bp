@@ -1,0 +1,21 @@
+# Local toolchain and the GloVe download (862MB zip, 1GB extracted)
+.tooling/
+
+# Build outputs
+web/node_modules/
+web/dist/
+preview/
+
+# Spoilers: the answer for every puzzle, written for tests only.
+# This must never be committed or served.
+tools/answers.debug.json
+
+# Generated game data. Large (75MB) and reproducible from tools/build_data.py.
+# Commit it instead if you would rather deploys not depend on the GloVe download.
+web/public/data/
+
+.DS_Store
+web/tsconfig.tsbuildinfo
+
+# Local Claude Code permissions, specific to this machine
+.claude/settings.local.json

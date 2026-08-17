@@ -1,0 +1,711 @@
+/*
+ * Closer - visual system.
+ *
+ * The board is the page: it fills the viewport and everything else floats over
+ * it in a translucent rail. Dark by default because the word field is drawn as
+ * light-on-dark and a light theme would mean re-tuning the renderer's additive
+ * blending, which is a deliberate later job rather than an oversight.
+ *
+ * Tone values are mirrored in plot/renderer.ts (TONES) - canvas cannot read CSS
+ * custom properties. Change both.
+ */
+
+:root {
+  --ink: #0b1020;
+  --ink-raised: rgba(19, 26, 46, 0.82);
+  --ink-line: rgba(146, 170, 214, 0.16);
+  --text: #e8eefb;
+  --text-dim: #9fb0d0;
+  --text-faint: #74849f;
+  --accent: #7aa2d6;
+
+  --tone-solved: #ffd684;
+  --tone-blazing: #ff8a60;
+  --tone-scorching: #ffa35c;
+  --tone-burning: #ffbe60;
+  --tone-hot: #f6d66e;
+  --tone-warm: #bedc8c;
+  --tone-mild: #88d0b2;
+  --tone-cool: #74bad6;
+  --tone-cold: #6e98cd;
+  --tone-distant: #7482a8;
+
+  --radius: 10px;
+  --rail-width: 26rem;
+
+  color-scheme: dark;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", sans-serif;
+  font-synthesis-weight: none;
+  -webkit-text-size-adjust: 100%;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--ink);
+  color: var(--text);
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ---------------------------------------------------------------- boot */
+
+.boot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.9rem;
+  height: 100%;
+  padding: 2rem;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+.boot-pulse {
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 2px solid var(--ink-line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 900ms linear infinite;
+}
+
+.boot-error h1 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: var(--text);
+}
+
+.boot-error code {
+  font-size: 0.85em;
+  color: var(--text);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .boot-pulse {
+    animation-duration: 3s;
+  }
+}
+
+/* --------------------------------------------------------------- layout */
+
+.app {
+  position: relative;
+  height: 100%;
+  /* Sits under any notch or home indicator on a phone. */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+.orbit {
+  position: absolute;
+  inset: 0;
+}
+
+.orbit-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(
+    ellipse at 50% 45%,
+    #121a30 0%,
+    var(--ink) 62%,
+    #070a15 100%
+  );
+  cursor: grab;
+  touch-action: none;
+}
+
+.orbit-canvas:active {
+  cursor: grabbing;
+}
+
+.orbit-controls {
+  position: absolute;
+  left: 1rem;
+  bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem;
+  background: var(--ink-raised);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--ink-line);
+  border-radius: var(--radius);
+}
+
+.orbit-controls button {
+  min-width: 2rem;
+  padding: 0.3rem 0.55rem;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.orbit-controls button:hover {
+  color: var(--text);
+  background: rgba(146, 170, 214, 0.12);
+}
+
+.orbit-zoom {
+  padding-right: 0.35rem;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint);
+}
+
+.app-header {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  pointer-events: none;
+}
+
+.wordmark {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.puzzle-number {
+  font-size: 0.85rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint);
+}
+
+.archive-flag {
+  margin: 0.25rem 0 0;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  pointer-events: auto;
+}
+
+.archive-flag a {
+  color: var(--accent);
+}
+
+/* ----------------------------------------------------------------- rail */
+
+.rail {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  width: var(--rail-width);
+  max-width: 100%;
+  background: linear-gradient(
+    to left,
+    rgba(9, 13, 26, 0.94) 60%,
+    rgba(9, 13, 26, 0.72) 100%
+  );
+  backdrop-filter: blur(14px);
+  border-left: 1px solid var(--ink-line);
+}
+
+.rail-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 1rem 1rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  scrollbar-width: thin;
+}
+
+.empty-state {
+  margin: 0;
+  padding: 0.75rem 0;
+  font-size: 0.86rem;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+
+/* ----------------------------------------------------------- guess list */
+
+.guess-list-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.segmented {
+  display: inline-flex;
+  padding: 2px;
+  background: rgba(146, 170, 214, 0.1);
+  border-radius: 7px;
+}
+
+.segmented button {
+  padding: 0.25rem 0.6rem;
+  font: inherit;
+  font-size: 0.75rem;
+  color: var(--text-faint);
+  background: transparent;
+  border: 0;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.segmented button.is-active {
+  color: var(--text);
+  background: rgba(146, 170, 214, 0.18);
+}
+
+.guess-count {
+  margin-left: auto;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint);
+}
+
+.guess-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.guess-row {
+  display: grid;
+  grid-template-columns: 1.75rem minmax(0, 1fr) 3.1rem 2.6rem 5.4rem;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.85rem;
+  background: rgba(146, 170, 214, 0.05);
+  border-left: 3px solid var(--row-tone, var(--tone-distant));
+  border-radius: 5px;
+}
+
+.guess-row.is-focus {
+  background: rgba(146, 170, 214, 0.15);
+  box-shadow: inset 0 0 0 1px var(--ink-line);
+}
+
+.guess-turn {
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint);
+  text-align: right;
+}
+
+.guess-word {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  min-width: 0;
+  font-weight: 550;
+  overflow-wrap: anywhere;
+}
+
+.guess-tag {
+  padding: 0.05rem 0.3rem;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: var(--text-faint);
+  border-radius: 3px;
+}
+
+.guess-similarity,
+.guess-rank {
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--text-dim);
+}
+
+.guess-rank {
+  color: var(--text-faint);
+}
+
+.guess-band {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  justify-self: end;
+}
+
+.guess-band-label {
+  font-size: 0.72rem;
+  color: var(--row-tone, var(--text-dim));
+}
+
+.guess-pips {
+  display: inline-flex;
+  gap: 1px;
+}
+
+.pip {
+  width: 3px;
+  height: 10px;
+  background: rgba(146, 170, 214, 0.18);
+  border-radius: 1px;
+}
+
+.pip.is-on {
+  background: var(--row-tone, var(--tone-distant));
+}
+
+.guess-row.is-revealed .guess-word {
+  font-style: italic;
+}
+
+.tone-solved {
+  --row-tone: var(--tone-solved);
+}
+.tone-blazing {
+  --row-tone: var(--tone-blazing);
+}
+.tone-scorching {
+  --row-tone: var(--tone-scorching);
+}
+.tone-burning {
+  --row-tone: var(--tone-burning);
+}
+.tone-hot {
+  --row-tone: var(--tone-hot);
+}
+.tone-warm {
+  --row-tone: var(--tone-warm);
+}
+.tone-mild {
+  --row-tone: var(--tone-mild);
+}
+.tone-cool {
+  --row-tone: var(--tone-cool);
+}
+.tone-cold {
+  --row-tone: var(--tone-cold);
+}
+.tone-distant {
+  --row-tone: var(--tone-distant);
+}
+
+/* ----------------------------------------------------------- guess form */
+
+.guess-form {
+  padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--ink-line);
+  background: rgba(7, 10, 21, 0.65);
+}
+
+.guess-input-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.guess-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.6rem 0.75rem;
+  font: inherit;
+  /* 16px stops iOS Safari zooming the viewport on focus. */
+  font-size: 16px;
+  color: var(--text);
+  background: rgba(146, 170, 214, 0.09);
+  border: 1px solid var(--ink-line);
+  border-radius: 8px;
+}
+
+.guess-input::placeholder {
+  color: var(--text-faint);
+}
+
+.guess-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(122, 162, 214, 0.25);
+}
+
+.button-primary {
+  padding: 0.6rem 1rem;
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--ink);
+  background: var(--accent);
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.button-primary:hover:not(:disabled) {
+  background: #93b6e2;
+}
+
+.button-ghost {
+  padding: 0.35rem 0.7rem;
+  font: inherit;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  background: transparent;
+  border: 1px solid var(--ink-line);
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.button-ghost:hover:not(:disabled) {
+  color: var(--text);
+  border-color: rgba(146, 170, 214, 0.35);
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.guess-form-foot {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+}
+
+.hint-status {
+  font-size: 0.72rem;
+  color: var(--text-faint);
+}
+
+.notice {
+  min-height: 1.1rem;
+  margin: 0.35rem 0 0;
+  font-size: 0.78rem;
+  color: var(--tone-burning);
+}
+
+.notice:not(.is-visible) {
+  visibility: hidden;
+}
+
+/* --------------------------------------------------------------- panels */
+
+.panel {
+  padding: 0.85rem;
+  background: rgba(146, 170, 214, 0.05);
+  border: 1px solid var(--ink-line);
+  border-radius: var(--radius);
+}
+
+.panel h2 {
+  margin: 0 0 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.panel-solved {
+  border-color: rgba(255, 214, 132, 0.35);
+  background: rgba(255, 214, 132, 0.07);
+}
+
+.solved-word {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--tone-solved);
+}
+
+.solved-summary {
+  margin: 0.15rem 0 0;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+
+.solved-spark {
+  margin: 0.4rem 0 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 1rem;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  color: var(--tone-warm);
+}
+
+.solved-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.countdown {
+  font-size: 0.75rem;
+  color: var(--text-faint);
+}
+
+.countdown time {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
+}
+
+.panel-about summary,
+.archive-toggle {
+  cursor: pointer;
+}
+
+.panel-about summary {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  list-style: none;
+}
+
+.panel-about summary::after {
+  content: " +";
+}
+
+.panel-about details[open] summary::after {
+  content: " \2212";
+}
+
+.panel-about h3 {
+  margin: 1rem 0 0.25rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.panel-about p {
+  margin: 0 0 0.5rem;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: var(--text-dim);
+}
+
+.fineprint {
+  font-size: 0.74rem !important;
+  color: var(--text-faint) !important;
+}
+
+.panel-archive {
+  padding: 0.6rem 0.85rem;
+}
+
+.archive-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0.6rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.archive-chip {
+  display: grid;
+  place-items: center;
+  min-width: 2.1rem;
+  padding: 0.25rem 0.35rem;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
+  text-decoration: none;
+  background: rgba(146, 170, 214, 0.08);
+  border: 1px solid transparent;
+  border-radius: 5px;
+}
+
+.archive-chip:hover {
+  color: var(--text);
+  border-color: var(--ink-line);
+}
+
+.archive-chip.is-solved {
+  color: var(--tone-warm);
+  background: rgba(190, 220, 140, 0.12);
+}
+
+.archive-chip.is-active {
+  border-color: var(--accent);
+}
+
+/* ------------------------------------------------------------ responsive */
+
+@media (max-width: 900px) {
+  :root {
+    --rail-width: 100%;
+  }
+
+  .rail {
+    top: auto;
+    /* Board keeps the top half; the rail becomes a sheet under it. */
+    height: 58%;
+    border-left: 0;
+    border-top: 1px solid var(--ink-line);
+  }
+
+  .orbit {
+    bottom: 58%;
+  }
+
+  .orbit-controls {
+    bottom: calc(58% + 0.75rem);
+  }
+
+  .guess-row {
+    grid-template-columns: minmax(0, 1fr) 3rem 2.4rem 4.6rem;
+  }
+
+  .guess-turn {
+    display: none;
+  }
+
+  .guess-band-label {
+    display: none;
+  }
+}
