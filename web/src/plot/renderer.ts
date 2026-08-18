@@ -1,6 +1,7 @@
 import { bandForRank } from "../game/bands";
 import { MAX_RADIUS, radiusForRank } from "../game/geometry";
 import type { Guess } from "../game/types";
+import { ShootingStars } from "./stars";
 import {
   ANSWER_GLOW_COLOUR,
   ANSWER_GLOW_PASSES,
@@ -184,6 +185,7 @@ class DustLayer {
 
 export class OrbitRenderer {
   private dust = new DustLayer();
+  private stars = new ShootingStars();
   readonly markers: MarkerSet;
 
   constructor(baseUrl: string) {
@@ -215,6 +217,13 @@ export class OrbitRenderer {
     });
 
     ctx.setTransform(viewport.dpr, 0, 0, viewport.dpr, 0, 0);
+
+    // Behind everything the player put there, in front of the word field.
+    if (input.animate) {
+      this.stars.update(input.timeMs, viewport.width, viewport.height);
+      this.stars.draw(ctx, input.timeMs);
+    }
+
     this.drawGuides(ctx, input);
     const answerTop = this.drawGuesses(ctx, input);
     this.drawCentre(ctx, input, answerTop);

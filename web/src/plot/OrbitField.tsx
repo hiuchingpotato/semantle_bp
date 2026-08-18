@@ -91,7 +91,9 @@ export default function OrbitField({
         if (settled) targetRef.current = null;
       }
 
-      const animate = guesses.length > 0 && !prefersReducedMotion();
+      // Runs whenever motion is allowed, not just once a word has been played:
+      // the shooting stars are background and should be there from the start.
+      const animate = !prefersReducedMotion();
 
       rendererRef.current.render(ctx, {
         camera: cameraRef.current,
