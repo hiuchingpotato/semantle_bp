@@ -284,9 +284,9 @@ https://hiuchingpotato.github.io/semantle_bp/</pre>
 
       const grid = document.getElementById("markers");
       for (const [height, label] of [
-        [34, "34px — now"],
-        [41, "41px — focused"],
-        [56, "56px"],
+        [41, "41px — now"],
+        [49, "49px — focused"],
+        [60, "60px"],
         [72, "72px"],
       ]) {
         const rowLabel = document.createElement("div");
@@ -304,7 +304,7 @@ https://hiuchingpotato.github.io/semantle_bp/</pre>
           // each marker off its vocabulary index for the same reason.
           img.style.animationDelay = `${(MARKERS.indexOf(marker) * 0.31).toFixed(2)}s`;
           const caption = document.createElement("figcaption");
-          caption.textContent = height === 34 ? marker.range : "";
+          caption.textContent = height === 41 ? marker.range : "";
           figure.append(img, caption);
           grid.append(figure);
         }

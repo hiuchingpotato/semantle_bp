@@ -40,8 +40,8 @@ export function markerBandForRank(rank: number): MarkerBand {
  * generated at 160px tall, so anything up to about 80px costs no quality and no
  * regeneration.
  */
-export const MARKER_HEIGHT = 34;
-export const MARKER_FOCUS_HEIGHT = 41;
+export const MARKER_HEIGHT = 41;
+export const MARKER_FOCUS_HEIGHT = 49;
 
 /** Height of the bob, in pixels. Small - it should read as hovering, not bouncing. */
 export const FLOAT_AMPLITUDE = 2.5;
