@@ -1091,3 +1091,48 @@ button:disabled {
   background: transparent;
   border-top: 0;
 }
+
+/* ------------------------------------------------------- panel toggles */
+
+/* Shared by the calendar and About, so a collapsed section always looks the
+   same wherever it appears in the rail. */
+.panel-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.panel-toggle:hover {
+  color: var(--text-dim);
+}
+
+.panel-toggle-mark {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.calendar-collapsed {
+  margin: 0.4rem 0 0;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+}
+
+.panel-calendar #calendar-body {
+  margin-top: 0.75rem;
+}
+
+/* `hidden` loses to the display value the grid sets, so state it plainly. */
+.panel-calendar [hidden] {
+  display: none;
+}
