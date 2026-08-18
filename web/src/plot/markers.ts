@@ -33,13 +33,15 @@ export function markerBandForRank(rank: number): MarkerBand {
 }
 
 /**
- * Height in CSS pixels. The dot these replace was 8px across, with a 24px ring
- * around the focused one; 28px keeps the markers close to that footprint while
- * leaving the characters just legible. Raising these is the only change needed
- * if they read too small on a real screen.
+ * Height in CSS pixels.
+ *
+ * The dot these replaced was 8px across, with a 24px ring around the focused
+ * one. These are the only two numbers that control marker size; the artwork is
+ * generated at 160px tall, so anything up to about 80px costs no quality and no
+ * regeneration.
  */
-export const MARKER_HEIGHT = 28;
-export const MARKER_FOCUS_HEIGHT = 34;
+export const MARKER_HEIGHT = 34;
+export const MARKER_FOCUS_HEIGHT = 41;
 
 /** Height of the bob, in pixels. Small - it should read as hovering, not bouncing. */
 export const FLOAT_AMPLITUDE = 2.5;

@@ -81,8 +81,9 @@ describe("marker sizing", () => {
     expect(MARKER_FOCUS_HEIGHT / MARKER_HEIGHT).toBeLessThan(1.5);
   });
 
-  it("stays near the footprint of the dot it replaced", () => {
-    // The old focused marker, ring included, was 24px across.
-    expect(MARKER_HEIGHT).toBeLessThanOrEqual(24 * 1.25);
+  it("stays within the resolution of the generated artwork", () => {
+    // tools/build_markers.sh emits 160px tall. Drawing larger than half that
+    // starts to soften on a 2x screen, which is the point to regenerate.
+    expect(MARKER_FOCUS_HEIGHT).toBeLessThanOrEqual(80);
   });
 });
