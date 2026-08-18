@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Closer — UI test page</title>
+
+    <!--
+      Opens straight from the filesystem: double-click it, no server, no build.
+
+      The stylesheet is the real one. Browsers block fetch() over file:// but not
+      <link>, so this page shows exactly the styles the app ships, and any change
+      to styles.css shows up here on reload.
+
+      The markup, though, is a hand-written copy of what the React components
+      render. It can drift. Treat this as a place to judge type sizes, spacing
+      and colour - not as proof the components behave correctly. For that, run
+      the real app (see README) or `npm test`.
+    -->
+    <link rel="stylesheet" href="./src/styles.css" />
+
+    <style>
+      /* Page furniture, not part of the app. */
+      body {
+        overflow: auto;
+        padding: 1.5rem;
+        font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+      }
+      .harness {
+        max-width: 30rem;
+        margin: 0 auto 2rem;
+      }
+      .harness h1 {
+        font-size: 1.1rem;
+        font-weight: 650;
+      }
+      .harness h2 {
+        margin: 1.75rem 0 0.5rem;
+        font-size: 0.75rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--text-faint);
+      }
+      .harness p {
+        font-size: 0.82rem;
+        line-height: 1.5;
+        color: var(--text-dim);
+      }
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin: 1rem 0;
+      }
+      .rail-mock {
+        padding: 1rem;
+        background: rgba(9, 13, 26, 0.6);
+        border: 1px solid var(--ink-line);
+        border-radius: 10px;
+      }
+      pre.sample {
+        padding: 0.75rem;
+        overflow-x: auto;
+        font-size: 0.78rem;
+        color: var(--text-dim);
+        background: rgba(146, 170, 214, 0.07);
+        border: 1px solid var(--ink-line);
+        border-radius: 8px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="harness">
+      <h1>Closer — UI test page</h1>
+      <p>
+        Static preview of the win modal and the guess list, using the real
+        stylesheet. No server needed. The board, the game logic and the share
+        buttons are not here — run the app for those.
+      </p>
+
+      <div class="controls">
+        <button type="button" class="button-primary" id="open">
+          Show win modal
+        </button>
+        <button type="button" class="button-ghost" id="copy">
+          Test copy format
+        </button>
+      </div>
+
+      <h2>Share text</h2>
+      <pre class="sample" id="share">Closer - Daily Demo 78
+42 guesses, time: 07:31, hints: 2
+https://hiuchingpotato.github.io/semantle_bp/</pre>
+
+      <h2>Guess list — is the answer clearly larger?</h2>
+      <div class="rail-mock">
+        <ol class="guess-rows">
+          <li class="guess-row tone-solved is-answer">
+            <span class="guess-turn">42</span>
+            <span class="guess-word">breakfast</span>
+            <span class="guess-similarity">100.00</span>
+            <span class="guess-rank"></span>
+            <span class="guess-band">
+              <span class="guess-pips">
+                <span class="pip is-on"></span><span class="pip is-on"></span
+                ><span class="pip is-on"></span><span class="pip is-on"></span
+                ><span class="pip is-on"></span><span class="pip is-on"></span>
+              </span>
+              <span class="guess-band-label">Solved</span>
+            </span>
+          </li>
+
+          <li class="guess-row tone-blazing is-focus">
+            <span class="guess-turn">39</span>
+            <span class="guess-word">lunch</span>
+            <span class="guess-similarity">71.40</span>
+            <span class="guess-rank">#4</span>
+            <span class="guess-band">
+              <span class="guess-pips">
+                <span class="pip is-on"></span><span class="pip is-on"></span
+                ><span class="pip is-on"></span><span class="pip is-on"></span
+                ><span class="pip is-on"></span><span class="pip is-on"></span>
+              </span>
+              <span class="guess-band-label">Blazing</span>
+            </span>
+          </li>
+
+          <li class="guess-row tone-hot is-revealed">
+            <span class="guess-turn">31</span>
+            <span class="guess-word"
+              >morning<span class="guess-tag">hint</span></span
+            >
+            <span class="guess-similarity">48.02</span>
+            <span class="guess-rank">#118</span>
+            <span class="guess-band">
+              <span class="guess-pips">
+                <span class="pip is-on"></span><span class="pip is-on"></span
+                ><span class="pip is-on"></span><span class="pip is-on"></span
+                ><span class="pip"></span><span class="pip"></span>
+              </span>
+              <span class="guess-band-label">Hot</span>
+            </span>
+          </li>
+
+          <li class="guess-row tone-mild">
+            <span class="guess-turn">12</span>
+            <span class="guess-word">kitchen</span>
+            <span class="guess-similarity">27.63</span>
+            <span class="guess-rank"></span>
+            <span class="guess-band">
+              <span class="guess-pips">
+                <span class="pip is-on"></span><span class="pip is-on"></span
+                ><span class="pip"></span><span class="pip"></span
+                ><span class="pip"></span><span class="pip"></span>
+              </span>
+              <span class="guess-band-label">Mild</span>
+            </span>
+          </li>
+
+          <li class="guess-row tone-distant">
+            <span class="guess-turn">3</span>
+            <span class="guess-word">gravity</span>
+            <span class="guess-similarity">2.11</span>
+            <span class="guess-rank"></span>
+            <span class="guess-band">
+              <span class="guess-pips">
+                <span class="pip"></span><span class="pip"></span
+                ><span class="pip"></span><span class="pip"></span
+                ><span class="pip"></span><span class="pip"></span>
+              </span>
+              <span class="guess-band-label">Distant</span>
+            </span>
+          </li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="modal-backdrop" id="backdrop" hidden>
+      <div
+        class="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="win-title"
+      >
+        <button type="button" class="modal-close" id="close" aria-label="Close">
+          ×
+        </button>
+
+        <h2 id="win-title" class="modal-title">Congratulations!</h2>
+
+        <p class="modal-lede">The word is</p>
+        <p class="modal-word">breakfast</p>
+
+        <dl class="modal-stats">
+          <div><dt>Played</dt><dd>12</dd></div>
+          <div><dt>Current streak</dt><dd>4</dd></div>
+          <div><dt>Max streak</dt><dd>9</dd></div>
+        </dl>
+
+        <p class="modal-result">42 guesses · 07:31 · 2 hints</p>
+
+        <div class="modal-actions">
+          <button type="button" class="button-primary">Share with friends</button>
+          <button type="button" class="button-ghost">Copy</button>
+        </div>
+
+        <p class="modal-share-note">
+          Opens your share sheet - WhatsApp, Instagram, Messages.
+        </p>
+      </div>
+    </div>
+
+    <script>
+      // Plain script, no modules: ES module imports are blocked over file://.
+      const backdrop = document.getElementById("backdrop");
+      const share = document.getElementById("share");
+
+      const open = () => (backdrop.hidden = false);
+      const close = () => (backdrop.hidden = true);
+
+      document.getElementById("open").addEventListener("click", open);
+      document.getElementById("close").addEventListener("click", close);
+      backdrop.addEventListener("mousedown", (event) => {
+        if (event.target === backdrop) close();
+      });
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") close();
+      });
+
+      document.getElementById("copy").addEventListener("click", async (event) => {
+        const button = event.currentTarget;
+        try {
+          await navigator.clipboard.writeText(share.textContent);
+          button.textContent = "Copied";
+          setTimeout(() => (button.textContent = "Test copy format"), 2000);
+        } catch {
+          // Clipboard access is often refused over file://; the prompt always works.
+          window.prompt("Copy", share.textContent);
+        }
+      });
+    </script>
+  </body>
+</html>
