@@ -64,6 +64,10 @@ export type GameState = {
   showWin: boolean;
   dismissWin: () => void;
   reopenWin: () => void;
+  /** True while the overall-statistics modal should be on screen. */
+  showStats: boolean;
+  openStats: () => void;
+  dismissStats: () => void;
 };
 
 export function useGame(now: Date = new Date()): GameState {
@@ -90,6 +94,7 @@ export function useGame(now: Date = new Date()): GameState {
   const [stats, setStats] = useState<StatsRecord>(EMPTY_STATS);
   const [elapsedSeconds, setElapsedSeconds] = useState<number | null>(null);
   const [showWin, setShowWin] = useState(false);
+  const [showStats, setShowStats] = useState(false);
 
   const wordIndex = useMemo(() => buildWordIndex(vocabulary), [vocabulary]);
   const statsRef = useRef<StatsRecord>(EMPTY_STATS);
@@ -298,6 +303,8 @@ export function useGame(now: Date = new Date()): GameState {
   // every keystroke.
   const dismissWin = useCallback(() => setShowWin(false), []);
   const reopenWin = useCallback(() => setShowWin(true), []);
+  const openStats = useCallback(() => setShowStats(true), []);
+  const dismissStats = useCallback(() => setShowStats(false), []);
 
   const takeHint = useCallback(() => {
     if (!puzzle || !hint.available) return;
@@ -331,5 +338,8 @@ export function useGame(now: Date = new Date()): GameState {
     showWin,
     dismissWin,
     reopenWin,
+    showStats,
+    openStats,
+    dismissStats,
   };
 }

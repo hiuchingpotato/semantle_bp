@@ -885,3 +885,43 @@ button:disabled {
   line-height: 1.4;
   color: var(--text-faint);
 }
+
+/* ------------------------------------------------ statistics-only dialog */
+
+.modal-stats-only {
+  width: min(21rem, 100%);
+  border-color: var(--ink-line);
+  background: #121a2e;
+}
+
+/* No word to celebrate here, so the heading is not gold. */
+.modal-title-plain {
+  font-size: 1.15rem;
+  color: var(--text);
+}
+
+.modal-stats-only .modal-stats {
+  margin-top: 1rem;
+}
+
+.modal-stats-only .modal-note {
+  margin-top: 0.85rem;
+  line-height: 1.45;
+}
+
+.solved-share-note {
+  min-height: 1rem;
+  margin: 0.4rem 0 0;
+  font-size: 0.72rem;
+  color: var(--tone-warm);
+}
+
+.solved-actions .button-primary,
+.solved-actions .button-ghost {
+  flex: 1;
+}
+
+.panel-solved .countdown {
+  display: block;
+  margin: 0.5rem 0 0;
+}

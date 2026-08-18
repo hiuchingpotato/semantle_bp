@@ -3,7 +3,8 @@ import { useEffect, useState } from "react";
 import { nextRollover } from "../game/schedule";
 import { formatDuration } from "../game/stats";
 import type { Guess } from "../game/types";
-import { sparkline } from "./share";
+import { buildShareText, sparkline } from "./share";
+import { useCopyResult } from "./useCopyResult";
 
 type Props = {
   puzzleNumber: number;
@@ -12,7 +13,7 @@ type Props = {
   secretWord: string;
   isArchive: boolean;
   elapsedSeconds: number | null;
-  onShowSummary: () => void;
+  onShowStats: () => void;
 };
 
 function useCountdown(target: Date): string {
@@ -35,11 +36,11 @@ function useCountdown(target: Date): string {
 }
 
 /**
- * The persistent record in the rail, once the modal has been dismissed.
+ * The persistent record in the rail, once the win dialog has been dismissed.
  *
- * Sharing lives in the modal rather than being duplicated here; this keeps a
- * button to bring it back, so a result is never one stray click from being
- * unreachable.
+ * Share copies straight from here rather than reopening the dialog: the player
+ * has already seen it, and making them reopen a modal to reach a button is a
+ * step for nothing.
  */
 export default function SolvedPanel({
   puzzleNumber,
@@ -48,10 +49,18 @@ export default function SolvedPanel({
   secretWord,
   isArchive,
   elapsedSeconds,
-  onShowSummary,
+  onShowStats,
 }: Props) {
   const countdown = useCountdown(nextRollover(new Date()));
   const hints = guesses.filter((guess) => guess.revealed).length;
+  const { copied, copy } = useCopyResult(
+    buildShareText({
+      puzzleNumber,
+      guesses: guesses.length,
+      hints,
+      seconds: elapsedSeconds,
+    }),
+  );
 
   return (
     <section className="panel panel-solved" aria-labelledby="solved-heading">
@@ -67,15 +76,23 @@ export default function SolvedPanel({
       </p>
 
       <div className="solved-actions">
-        <button type="button" className="button-primary" onClick={onShowSummary}>
-          Share result
+        <button type="button" className="button-primary" onClick={copy}>
+          {copied ? "Copied!" : "Share result"}
         </button>
-        {!isArchive && (
-          <span className="countdown">
-            Next word in <time>{countdown}</time>
-          </span>
-        )}
+        <button type="button" className="button-ghost" onClick={onShowStats}>
+          Statistics
+        </button>
       </div>
+
+      <p className="solved-share-note" role="status">
+        {copied ? "Copied — paste it to your friends." : ""}
+      </p>
+
+      {!isArchive && (
+        <p className="countdown">
+          Next word in <time>{countdown}</time>
+        </p>
+      )}
     </section>
   );
 }

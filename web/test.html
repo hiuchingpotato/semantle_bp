@@ -128,6 +128,9 @@
         <button type="button" class="button-primary" id="open">
           Show win modal
         </button>
+        <button type="button" class="button-ghost" id="open-stats">
+          Show statistics modal
+        </button>
         <button type="button" class="button-ghost" id="copy">
           Test copy format
         </button>
@@ -229,6 +232,43 @@ https://hiuchingpotato.github.io/semantle_bp/</pre>
       </div>
     </div>
 
+    <div class="modal-backdrop" id="stats-backdrop" hidden>
+      <div
+        class="modal modal-stats-only"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="stats-title"
+      >
+        <button
+          type="button"
+          class="modal-close"
+          id="stats-close"
+          aria-label="Close"
+        >
+          ×
+        </button>
+
+        <h2 id="stats-title" class="modal-title modal-title-plain">Statistics</h2>
+
+        <dl class="modal-stats">
+          <div><dt>Played</dt><dd>12</dd></div>
+          <div><dt>Current streak</dt><dd>4</dd></div>
+          <div><dt>Max streak</dt><dd>9</dd></div>
+        </dl>
+
+        <p class="modal-note">
+          A streak continues as long as you do not miss a day. Solving a past
+          puzzle can repair one.
+        </p>
+
+        <div class="modal-actions">
+          <button type="button" class="button-primary" id="stats-ok">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+
     <div class="modal-backdrop" id="backdrop" hidden>
       <div
         class="modal"
@@ -323,8 +363,22 @@ https://hiuchingpotato.github.io/semantle_bp/</pre>
       backdrop.addEventListener("mousedown", (event) => {
         if (event.target === backdrop) close();
       });
+      const statsBackdrop = document.getElementById("stats-backdrop");
+      const closeStats = () => (statsBackdrop.hidden = true);
+
+      document
+        .getElementById("open-stats")
+        .addEventListener("click", () => (statsBackdrop.hidden = false));
+      document.getElementById("stats-close").addEventListener("click", closeStats);
+      document.getElementById("stats-ok").addEventListener("click", closeStats);
+      statsBackdrop.addEventListener("mousedown", (event) => {
+        if (event.target === statsBackdrop) closeStats();
+      });
+
       document.addEventListener("keydown", (event) => {
-        if (event.key === "Escape") close();
+        if (event.key !== "Escape") return;
+        close();
+        closeStats();
       });
 
       async function copyResult(button, restoreLabel, note) {

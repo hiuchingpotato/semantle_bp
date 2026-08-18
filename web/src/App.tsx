@@ -5,6 +5,7 @@ import ArchivePanel from "./ui/ArchivePanel";
 import GuessForm from "./ui/GuessForm";
 import GuessList from "./ui/GuessList";
 import SolvedPanel from "./ui/SolvedPanel";
+import StatsModal from "./ui/StatsModal";
 import WinModal from "./ui/WinModal";
 
 export default function App() {
@@ -75,7 +76,7 @@ export default function App() {
               secretWord={secretWord}
               isArchive={game.isArchive}
               elapsedSeconds={game.elapsedSeconds}
-              onShowSummary={game.reopenWin}
+              onShowStats={game.openStats}
             />
           )}
 
@@ -109,6 +110,10 @@ export default function App() {
           isArchive={game.isArchive}
           onClose={game.dismissWin}
         />
+      )}
+
+      {game.showStats && (
+        <StatsModal stats={game.stats} onClose={game.dismissStats} />
       )}
 
       {/* Single live region for guess results, so a screen reader hears the
