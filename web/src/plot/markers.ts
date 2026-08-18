@@ -135,6 +135,26 @@ export class MarkerSet {
     return markerBandForRank(rank).scale;
   }
 
+  /**
+   * Distinct files that have loaded, for the background drifters to choose
+   * from. Deduplicated: the hot sauce and the slushie each hold two bands, and
+   * a raw list would make them twice as likely to drift past as the others.
+   */
+  get readyFiles(): string[] {
+    const files = new Set<string>();
+    for (const band of MARKER_BANDS) {
+      if (this.states.get(band.file) === "ready") files.add(band.file);
+    }
+    return [...files];
+  }
+
+  /** A loaded image by file name, or null if it is not usable. */
+  byFile(file: string): HTMLImageElement | null {
+    if (this.states.get(file) !== "ready") return null;
+    const image = this.images.get(file);
+    return image?.complete && image.naturalWidth > 0 ? image : null;
+  }
+
   get anyReady(): boolean {
     for (const state of this.states.values()) {
       if (state === "ready") return true;

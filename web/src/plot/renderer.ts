@@ -1,6 +1,7 @@
 import { bandForRank } from "../game/bands";
 import { MAX_RADIUS, radiusForRank } from "../game/geometry";
 import type { Guess } from "../game/types";
+import { Drifters } from "./drifters";
 import { ShootingStars } from "./stars";
 import {
   ANSWER_GLOW_COLOUR,
@@ -186,6 +187,7 @@ class DustLayer {
 export class OrbitRenderer {
   private dust = new DustLayer();
   private stars = new ShootingStars();
+  private drifters = new Drifters();
   readonly markers: MarkerSet;
 
   constructor(baseUrl: string) {
@@ -220,6 +222,14 @@ export class OrbitRenderer {
 
     // Behind everything the player put there, in front of the word field.
     if (input.animate) {
+      this.drifters.update(
+        input.timeMs,
+        viewport.width,
+        viewport.height,
+        this.markers.readyFiles,
+      );
+      this.drifters.draw(ctx, input.timeMs, (file) => this.markers.byFile(file));
+
       this.stars.update(input.timeMs, viewport.width, viewport.height);
       this.stars.draw(ctx, input.timeMs);
     }
