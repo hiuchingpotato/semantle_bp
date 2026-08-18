@@ -1,6 +1,12 @@
 import { bandForRank } from "../game/bands";
 import { MAX_RADIUS, radiusForRank } from "../game/geometry";
 import type { Guess } from "../game/types";
+import {
+  MARKER_FOCUS_HEIGHT,
+  MARKER_HEIGHT,
+  MarkerSet,
+  floatOffset,
+} from "./markers";
 
 /**
  * The board renderer.
@@ -46,6 +52,10 @@ export type RenderInput = {
   focus: Guess | null;
   solved: boolean;
   secretWord: string;
+  /** Clock for the hover, in milliseconds. */
+  timeMs: number;
+  /** False when the player has asked for reduced motion; markers sit still. */
+  animate: boolean;
 };
 
 export function boardToScreen(
@@ -78,6 +88,9 @@ class DustLayer {
   private pixels: Uint32Array | null = null;
   private width = 0;
   private height = 0;
+  /** Rasterised dust, kept so the animation loop can blit rather than recompute. */
+  private cache: HTMLCanvasElement | null = null;
+  private cacheKey = "";
 
   resize(width: number, height: number): void {
     if (width === this.width && height === this.height && this.image) return;
@@ -85,9 +98,31 @@ class DustLayer {
     this.height = height;
     this.image = new ImageData(width, height);
     this.pixels = new Uint32Array(this.image.data.buffer);
+    this.cache = document.createElement("canvas");
+    this.cache.width = width;
+    this.cache.height = height;
+    // Force a recompute: the old raster is the wrong size.
+    this.cacheKey = "";
   }
 
-  draw(ctx: CanvasRenderingContext2D, input: RenderInput): void {
+  /**
+   * Paint the dust, recomputing only when the view has actually moved.
+   *
+   * The markers hover continuously, so this runs 60 times a second. Walking
+   * 60,000 words and clearing a megapixel buffer that often would burn a laptop
+   * battery for no visible gain - the field only changes when the camera does.
+   */
+  paint(ctx: CanvasRenderingContext2D, input: RenderInput): void {
+    const { camera } = input;
+    const key = `${camera.x}|${camera.y}|${camera.scale}|${this.width}x${this.height}`;
+    if (key !== this.cacheKey) {
+      this.rasterise(input);
+      this.cacheKey = key;
+    }
+    if (this.cache) ctx.drawImage(this.cache, 0, 0);
+  }
+
+  private rasterise(input: RenderInput): void {
     const { width, height } = this;
     if (!this.image || !this.pixels || width === 0 || height === 0) return;
 
@@ -129,7 +164,7 @@ class DustLayer {
       }
     }
 
-    ctx.putImageData(this.image, 0, 0);
+    this.cache?.getContext("2d")?.putImageData(this.image, 0, 0);
   }
 
   private accumulate(
@@ -146,6 +181,12 @@ class DustLayer {
 
 export class OrbitRenderer {
   private dust = new DustLayer();
+  readonly markers: MarkerSet;
+
+  constructor(baseUrl: string) {
+    this.markers = new MarkerSet(baseUrl);
+    this.markers.load();
+  }
 
   render(ctx: CanvasRenderingContext2D, input: RenderInput): void {
     const { viewport } = input;
@@ -160,7 +201,7 @@ export class OrbitRenderer {
       Math.round(viewport.width * viewport.dpr),
       Math.round(viewport.height * viewport.dpr),
     );
-    this.dust.draw(ctx, {
+    this.dust.paint(ctx, {
       ...input,
       camera: { ...input.camera, scale: input.camera.scale * viewport.dpr },
       viewport: {
@@ -237,46 +278,97 @@ export class OrbitRenderer {
 
       const band = bandForRank(guess.rank);
       const isFocus = focus?.vocabIndex === guess.vocabIndex;
-      const radius = isFocus ? 6 : 4;
+      const marker = this.markers.forRank(guess.rank);
 
-      if (isFocus) {
-        ctx.beginPath();
-        ctx.arc(px, py, radius + 6, 0, Math.PI * 2);
-        ctx.strokeStyle = toneColour(band.tone, 0.5);
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-      }
-
-      ctx.beginPath();
-      ctx.arc(px, py, radius, 0, Math.PI * 2);
-      ctx.fillStyle = toneColour(band.tone, 1);
-      ctx.fill();
-
-      if (guess.revealed) {
-        // Revealed words get a hollow centre so they read differently from
-        // words the player actually found.
-        ctx.beginPath();
-        ctx.arc(px, py, radius - 2, 0, Math.PI * 2);
-        ctx.fillStyle = "#0b1020";
-        ctx.fill();
-      }
+      // The bob is per-marker, phased off the vocabulary index so the board does
+      // not pulse in unison - that reads as a glitch rather than as floating.
+      const bob = input.animate ? floatOffset(input.timeMs, guess.vocabIndex) : 0;
+      const markerTop = this.drawMarker(ctx, {
+        px,
+        py: py + bob,
+        marker,
+        band,
+        isFocus,
+        revealed: guess.revealed,
+      });
 
       if (!labelSet.has(guess.vocabIndex)) continue;
       const collides = claimed.some(
-        (taken) => Math.abs(taken.x - px) < 54 && Math.abs(taken.y - py) < 16,
+        (taken) => Math.abs(taken.x - px) < 54 && Math.abs(taken.y - py) < 22,
       );
       if (collides && !isFocus) continue;
       claimed.push({ x: px, y: py });
 
+      // The label sits above the artwork, not above the anchor point, or it
+      // lands on top of the character.
       const label = guess.word;
       ctx.lineWidth = 3;
       ctx.strokeStyle = "rgba(8, 12, 26, 0.85)";
-      ctx.strokeText(label, px, py - radius - 4);
+      ctx.strokeText(label, px, markerTop - 4);
       ctx.fillStyle = isFocus ? "#f4f8ff" : "rgba(226, 235, 250, 0.82)";
-      ctx.fillText(label, px, py - radius - 4);
+      ctx.fillText(label, px, markerTop - 4);
     }
 
     ctx.restore();
+  }
+
+  /**
+   * One marker. Returns the y of its top edge, so the caller can put a label
+   * above the artwork rather than above the anchor point.
+   *
+   * The character sits *above* the point it marks, like a pin, with a soft
+   * shadow on the board beneath it. Centring the artwork on the point would bury
+   * the exact position under the widest part of the drawing.
+   */
+  private drawMarker(
+    ctx: CanvasRenderingContext2D,
+    options: {
+      px: number;
+      py: number;
+      marker: HTMLImageElement | null;
+      band: { tone: string };
+      isFocus: boolean;
+      revealed: boolean;
+    },
+  ): number {
+    const { px, py, marker, band, isFocus, revealed } = options;
+
+    if (!marker) {
+      // Image not loaded, or missing. Fall back to the dot rather than showing
+      // a gap where a word should be.
+      const radius = isFocus ? 6 : 4;
+      ctx.beginPath();
+      ctx.arc(px, py, radius, 0, Math.PI * 2);
+      ctx.fillStyle = toneColour(band.tone, 1);
+      ctx.fill();
+      return py - radius;
+    }
+
+    const height = isFocus ? MARKER_FOCUS_HEIGHT : MARKER_HEIGHT;
+    const width = (marker.naturalWidth / marker.naturalHeight) * height;
+    const top = py - height;
+
+    // Contact shadow, so the character reads as hovering over the board rather
+    // than pasted onto it.
+    ctx.save();
+    ctx.globalAlpha = isFocus ? 0.42 : 0.3;
+    ctx.fillStyle = "#05070f";
+    ctx.beginPath();
+    ctx.ellipse(px, py, width * 0.3, height * 0.06, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    if (isFocus) {
+      ctx.shadowColor = toneColour(band.tone, 0.85);
+      ctx.shadowBlur = 12;
+    }
+    // Revealed words are dimmed, so a hint is visibly not your own find.
+    ctx.globalAlpha = revealed ? 0.62 : 1;
+    ctx.drawImage(marker, px - width / 2, top, width, height);
+    ctx.restore();
+
+    return top;
   }
 
   private drawCentre(ctx: CanvasRenderingContext2D, input: RenderInput): void {

@@ -43,7 +43,7 @@ export default function OrbitField({
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
-  const rendererRef = useRef(new OrbitRenderer());
+  const rendererRef = useRef(new OrbitRenderer(import.meta.env.BASE_URL || "/"));
 
   const cameraRef = useRef<Camera>({ x: 0, y: 0, scale: 400 });
   const targetRef = useRef<Camera | null>(null);
@@ -91,6 +91,8 @@ export default function OrbitField({
         if (settled) targetRef.current = null;
       }
 
+      const animate = guesses.length > 0 && !prefersReducedMotion();
+
       rendererRef.current.render(ctx, {
         camera: cameraRef.current,
         viewport: viewportRef.current,
@@ -101,10 +103,15 @@ export default function OrbitField({
         focus,
         solved,
         secretWord,
+        timeMs: performance.now(),
+        animate,
       });
       setZoomLabel(cameraRef.current.scale);
 
-      if (targetRef.current) requestDraw();
+      // Keep going while the camera is easing, or while markers are hovering.
+      // The dust layer is cached between frames, so a hover frame only costs a
+      // blit plus a handful of drawImage calls.
+      if (targetRef.current || animate) requestDraw();
     });
   }, [focus, guesses, secretWord, solved, wordCount, xs, ys]);
 
@@ -153,6 +160,28 @@ export default function OrbitField({
   useEffect(() => {
     requestDraw();
   }, [guesses, focus, solved, requestDraw]);
+
+  useEffect(() => {
+    // Markers arrive over the network after the first paint; repaint when one
+    // lands so the fallback dots upgrade to characters.
+    rendererRef.current.markers.setReadyCallback(requestDraw);
+
+    // A hidden tab should not run an animation loop. requestAnimationFrame is
+    // already throttled when backgrounded, but this also stops the loop from
+    // holding a pending frame across a long absence.
+    const onVisibility = () => {
+      if (!document.hidden) requestDraw();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      if (frameRef.current !== null) {
+        cancelAnimationFrame(frameRef.current);
+        frameRef.current = null;
+      }
+    };
+  }, [requestDraw]);
 
   // Frame the newest word. Without this the interesting part of the board is
   // usually a few hundred pixels off screen at whatever zoom you left it at.
