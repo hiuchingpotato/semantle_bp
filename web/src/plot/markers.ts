@@ -14,15 +14,26 @@ export type MarkerBand = {
   file: string;
   /** For the alt text and the legend. */
   name: string;
+  /** Multiplier on the marker height. 1 is the standard size. */
+  scale: number;
 };
 
 export const MARKER_BANDS: readonly MarkerBand[] = [
-  { maxRank: 9, file: "4_hot_sauce.png", name: "hot sauce" },
-  { maxRank: 49, file: "3_sausage.png", name: "hot dog" },
-  { maxRank: 299, file: "6_drumstick.png", name: "drumstick" },
-  { maxRank: 2999, file: "2_gherkin.png", name: "gherkin" },
-  { maxRank: 9999, file: "1_ice_cream.png", name: "ice cream" },
-  { maxRank: Infinity, file: "5_slushie.png", name: "slushie" },
+  { maxRank: 9, file: "4_hot_sauce.png", name: "hot sauce", scale: 1 },
+  { maxRank: 49, file: "3_sausage.png", name: "hot dog", scale: 1 },
+  { maxRank: 299, file: "6_drumstick.png", name: "drumstick", scale: 1 },
+  { maxRank: 2999, file: "2_gherkin.png", name: "gherkin", scale: 1 },
+  { maxRank: 9999, file: "1_ice_cream.png", name: "ice cream", scale: 1 },
+  { maxRank: 24_999, file: "5_slushie.png", name: "slushie", scale: 1 },
+  // Same character, drawn smaller. The furthest guesses read as further away
+  // rather than needing a seventh character, and it stops the outer field -
+  // where most early guesses land - from filling with full-size artwork.
+  {
+    maxRank: Infinity,
+    file: "5_slushie.png",
+    name: "distant slushie",
+    scale: 0.6,
+  },
 ];
 
 export function markerBandForRank(rank: number): MarkerBand {
@@ -97,6 +108,11 @@ export class MarkerSet {
     if (this.states.get(band.file) !== "ready") return null;
     const image = this.images.get(band.file);
     return image?.complete && image.naturalWidth > 0 ? image : null;
+  }
+
+  /** Height multiplier for this rank. */
+  scaleForRank(rank: number): number {
+    return markerBandForRank(rank).scale;
   }
 
   get anyReady(): boolean {

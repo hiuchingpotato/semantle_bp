@@ -23,7 +23,22 @@ describe("markerBandForRank", () => {
     expect(markerBandForRank(3000).name).toBe("ice cream");
     expect(markerBandForRank(9999).name).toBe("ice cream");
     expect(markerBandForRank(10_000).name).toBe("slushie");
-    expect(markerBandForRank(59_999).name).toBe("slushie");
+    expect(markerBandForRank(24_999).name).toBe("slushie");
+    expect(markerBandForRank(25_000).name).toBe("distant slushie");
+    expect(markerBandForRank(59_999).name).toBe("distant slushie");
+  });
+
+  it("shrinks the furthest guesses rather than recolouring them", () => {
+    // Same artwork either side of 25,000; only the size changes.
+    expect(markerBandForRank(24_999).file).toBe(markerBandForRank(25_000).file);
+    expect(markerBandForRank(24_999).scale).toBe(1);
+    expect(markerBandForRank(25_000).scale).toBeCloseTo(0.6, 6);
+  });
+
+  it("draws every other band at full size", () => {
+    for (const rank of [0, 10, 50, 300, 3000, 10_000, 24_999]) {
+      expect(markerBandForRank(rank).scale).toBe(1);
+    }
   });
 
   it("covers every rank without a gap", () => {
@@ -32,19 +47,30 @@ describe("markerBandForRank", () => {
     }
   });
 
-  it("maps each character to exactly one band", () => {
+  it("uses all six characters", () => {
+    // Seven bands, six images: the slushie appears twice, at two sizes.
     const files = MARKER_BANDS.map((band) => band.file);
-    expect(new Set(files).size).toBe(files.length);
-    expect(files).toHaveLength(6);
+    expect(new Set(files).size).toBe(6);
+    expect(files).toHaveLength(7);
   });
 
   it("never gets colder as the guess improves", () => {
     // The band index must be monotone in rank, or the feedback lies.
     let previous = MARKER_BANDS.length;
-    for (const rank of [59_999, 10_000, 3000, 300, 50, 10, 0]) {
+    for (const rank of [59_999, 25_000, 10_000, 3000, 300, 50, 10, 0]) {
       const index = MARKER_BANDS.indexOf(markerBandForRank(rank));
       expect(index).toBeLessThanOrEqual(previous);
       previous = index;
+    }
+  });
+
+  it("never grows as the guess gets worse", () => {
+    // Size is a distance cue, so it must not increase with rank.
+    let previous = Infinity;
+    for (const rank of [0, 10, 50, 300, 3000, 10_000, 25_000, 59_999]) {
+      const scale = markerBandForRank(rank).scale;
+      expect(scale).toBeLessThanOrEqual(previous);
+      previous = scale;
     }
   });
 });

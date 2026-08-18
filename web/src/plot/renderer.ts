@@ -290,6 +290,7 @@ export class OrbitRenderer {
         band,
         isFocus,
         revealed: guess.revealed,
+        scale: this.markers.scaleForRank(guess.rank),
       });
 
       if (!labelSet.has(guess.vocabIndex)) continue;
@@ -329,14 +330,15 @@ export class OrbitRenderer {
       band: { tone: string };
       isFocus: boolean;
       revealed: boolean;
+      scale: number;
     },
   ): number {
-    const { px, py, marker, band, isFocus, revealed } = options;
+    const { px, py, marker, band, isFocus, revealed, scale } = options;
 
     if (!marker) {
       // Image not loaded, or missing. Fall back to the dot rather than showing
       // a gap where a word should be.
-      const radius = isFocus ? 6 : 4;
+      const radius = (isFocus ? 6 : 4) * scale;
       ctx.beginPath();
       ctx.arc(px, py, radius, 0, Math.PI * 2);
       ctx.fillStyle = toneColour(band.tone, 1);
@@ -344,7 +346,7 @@ export class OrbitRenderer {
       return py - radius;
     }
 
-    const height = isFocus ? MARKER_FOCUS_HEIGHT : MARKER_HEIGHT;
+    const height = (isFocus ? MARKER_FOCUS_HEIGHT : MARKER_HEIGHT) * scale;
     const width = (marker.naturalWidth / marker.naturalHeight) * height;
     const top = py - height;
 
