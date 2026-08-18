@@ -12,7 +12,7 @@ import {
   fetchVocabulary,
   resolveGuess,
 } from "./loader";
-import { readRequestedPuzzle, resolveSchedule } from "./schedule";
+import { puzzleNumberFor, readRequestedPuzzle, resolveSchedule } from "./schedule";
 import {
   EMPTY_STATS,
   findSolve,
@@ -59,6 +59,8 @@ export type GameState = {
   hint: ReturnType<typeof hintAvailability>;
   /** Games played and streaks, across every puzzle. */
   stats: StatsSummary;
+  /** Full history, for per-day state in the calendar. */
+  statsRecord: StatsRecord;
   /** Seconds from first guess to solve, once solved. */
   elapsedSeconds: number | null;
   /** True while the congratulations modal should be on screen. */
@@ -101,6 +103,9 @@ export function useGame(now: Date = new Date()): GameState {
   const wordIndex = useMemo(() => buildWordIndex(vocabulary), [vocabulary]);
   const statsRef = useRef<StatsRecord>(EMPTY_STATS);
   statsRef.current = stats;
+  // Read inside play() to decide whether a solve landed on its own day.
+  const manifestRef = useRef<Manifest | null>(null);
+  manifestRef.current = manifest;
   // When the first guess of this puzzle happened. Set on load if the player is
   // resuming, otherwise on their first guess.
   const startedAtRef = useRef<Date | null>(null);
@@ -282,12 +287,20 @@ export function useGame(now: Date = new Date()): GameState {
         setShowWin(true);
         void markSolved(puzzle.number, at);
 
+        // Recomputed from the clock rather than read off the schedule resolved
+        // at load: a tab left open past midnight would otherwise credit
+        // yesterday's puzzle as solved on time.
+        const onTime =
+          manifestRef.current !== null &&
+          puzzleNumberFor(manifestRef.current.epoch, at) === puzzle.number;
+
         const recorded = recordSolve(statsRef.current, {
           puzzle: puzzle.number,
           guesses: next.length,
           hints: next.filter((guess) => guess.revealed).length,
           seconds,
           solvedAt: at.toISOString(),
+          onTime,
         });
         statsRef.current = recorded;
         setStats(recorded);
@@ -352,6 +365,7 @@ export function useGame(now: Date = new Date()): GameState {
     takeHint,
     hint,
     stats: summarise(stats, schedule.today),
+    statsRecord: stats,
     elapsedSeconds,
     showWin,
     dismissWin,

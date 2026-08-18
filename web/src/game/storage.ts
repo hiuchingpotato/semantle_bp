@@ -16,7 +16,14 @@ import type { SavedProgress } from "./types";
  * also the cheapest possible answer to UK GDPR and PECR for a first release.
  */
 
-const NAMESPACE = "closer";
+/**
+ * Bumped when the puzzle schedule changes.
+ *
+ * Progress is keyed by puzzle number, so moving the epoch would silently attach
+ * an old game to a different word. A new namespace abandons that data rather
+ * than showing someone a board that no longer matches what they played.
+ */
+const NAMESPACE = "closer/v2";
 
 const progressKey = (puzzle: number) => `${NAMESPACE}/progress/${puzzle}`;
 const solvedKey = (puzzle: number) => `${NAMESPACE}/solved/${puzzle}`;

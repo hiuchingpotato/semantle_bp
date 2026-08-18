@@ -16,6 +16,14 @@ export type SolveRecord = {
   /** Wall-clock seconds from first guess to solve. */
   seconds: number;
   solvedAt: string;
+  /**
+   * Solved on the puzzle's own day, before it rolled over at midnight.
+   *
+   * Only these build a streak. A puzzle picked up later still keeps its record -
+   * guesses, time, the lot - but catching up cannot manufacture a streak you
+   * did not play day by day.
+   */
+  onTime: boolean;
 };
 
 export type StatsRecord = {
@@ -54,20 +62,20 @@ function solvedRuns(puzzles: number[]): number[][] {
 /**
  * Headline figures.
  *
- * The streak is the unbroken run of solved puzzles ending either today or
- * yesterday. Yesterday counts so that a streak is not reported as broken during
- * the hours before you have got round to today's puzzle - the same rule Wordle
- * uses, and the one players expect.
+ * The streak counts only puzzles solved on their own day. Going back and
+ * finishing an old one keeps its record and counts as played, but it cannot
+ * build or repair a streak - a streak is a record of turning up daily, and
+ * catching up at the weekend is not that.
  *
- * Solving an archive puzzle can therefore extend a streak by filling a gap. That
- * is deliberate: the alternative is telling someone who has solved every puzzle
- * that their streak is 1.
+ * A run ending yesterday still counts as current, so nobody is told their
+ * streak is broken during the hours before they have got round to today.
  */
 export function summarise(
   stats: StatsRecord,
   todayNumber: number,
 ): StatsSummary {
-  const runs = solvedRuns(stats.solves.map((solve) => solve.puzzle));
+  const onTime = stats.solves.filter((solve) => solve.onTime);
+  const runs = solvedRuns(onTime.map((solve) => solve.puzzle));
 
   const maxStreak = runs.reduce((longest, run) => Math.max(longest, run.length), 0);
 
@@ -118,6 +126,30 @@ export function recordSolve(
   };
 }
 
+/** What the calendar needs to know about a single day. */
+export type PuzzleState =
+  /** Not released yet. */
+  | "locked"
+  /** Released, never opened. */
+  | "unplayed"
+  /** Guessed at but not finished. Still replayable. */
+  | "started"
+  /** Finished on the day, so it counts towards the streak. */
+  | "solved"
+  /** Finished later. Kept as a record, but not part of any streak. */
+  | "replayed";
+
+export function puzzleState(
+  stats: StatsRecord,
+  puzzle: number,
+  todayNumber: number,
+): PuzzleState {
+  if (puzzle > todayNumber || puzzle < 0) return "locked";
+  const solve = findSolve(stats, puzzle);
+  if (solve) return solve.onTime ? "solved" : "replayed";
+  return stats.started.includes(puzzle) ? "started" : "unplayed";
+}
+
 export function findSolve(
   stats: StatsRecord,
   puzzle: number,
@@ -149,13 +181,17 @@ export function reviveStats(value: unknown): StatsRecord {
     : [];
 
   const solves = Array.isArray(record.solves)
-    ? record.solves.filter(
-        (entry): entry is SolveRecord =>
-          !!entry &&
-          typeof entry === "object" &&
-          Number.isInteger((entry as SolveRecord).puzzle) &&
-          Number.isFinite((entry as SolveRecord).guesses),
-      )
+    ? record.solves
+        .filter(
+          (entry): entry is SolveRecord =>
+            !!entry &&
+            typeof entry === "object" &&
+            Number.isInteger((entry as SolveRecord).puzzle) &&
+            Number.isFinite((entry as SolveRecord).guesses),
+        )
+        // A record written before on-time tracking cannot be verified after the
+        // fact, so it does not get the benefit of the doubt.
+        .map((entry) => ({ ...entry, onTime: entry.onTime === true }))
     : [];
 
   return { version: 1, started, solves };

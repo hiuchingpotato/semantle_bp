@@ -120,6 +120,12 @@ someone whose job it is review it.
 grid-of-coloured-tiles format is the specific thing the New York Times has
 pursued Wordle clones over; avoiding it costs nothing.
 
+**A streak means turning up, not catching up.** Only a puzzle solved on its own
+day builds a streak. Past days stay open and keep a full record when finished,
+but they cannot repair a gap - `onTime` is stamped on the solve from the clock at
+the moment of solving, not inferred later. Puzzle #0 is 18 August 2026 and a new
+one unlocks at local midnight whether or not anyone opened the game.
+
 **British and American spellings score identically.** The corpus is American -
 `flavor` ranks 7,664th by frequency and `flavour` 29,943rd - so without this a UK
 player typing `flavour` lands in a worse band for the same idea. `build_aliases`

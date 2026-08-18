@@ -262,7 +262,7 @@ def main() -> int:
     parser.add_argument(
         "--puzzles", type=int, default=0, help="puzzles to build (0 = every answer)"
     )
-    parser.add_argument("--epoch", default="2026-06-01", help="date of puzzle #0")
+    parser.add_argument("--epoch", default="2026-08-18", help="date of puzzle #0")
     parser.add_argument("--scan-limit", type=int, default=250000)
     parser.add_argument("--seed", type=int, default=20260815)
     args = parser.parse_args()

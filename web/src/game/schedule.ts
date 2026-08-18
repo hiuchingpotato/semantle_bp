@@ -26,6 +26,22 @@ export function puzzleNumberFor(epochIso: string, now: Date): number {
   return Math.floor(days);
 }
 
+/** The local date a puzzle number belongs to. */
+export function dateForPuzzle(epochIso: string, puzzle: number): Date {
+  const epoch = parseIsoDate(epochIso);
+  return new Date(epoch.getFullYear(), epoch.getMonth(), epoch.getDate() + puzzle);
+}
+
+/** The puzzle number for a local date. Negative before the epoch. */
+export function puzzleForDate(epochIso: string, date: Date): number {
+  return (calendarDay(date) - calendarDay(parseIsoDate(epochIso))) / MS_PER_DAY;
+}
+
+/** True when two dates fall on the same local calendar day. */
+export function isSameDay(a: Date, b: Date): boolean {
+  return calendarDay(a) === calendarDay(b);
+}
+
 /** Local midnight after `now` - what the countdown ticks towards. */
 export function nextRollover(now: Date): Date {
   const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);

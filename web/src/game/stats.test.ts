@@ -11,16 +11,24 @@ import {
   summarise,
 } from "./stats";
 
-const solve = (puzzle: number, guesses = 20, hints = 0) => ({
+const solve = (puzzle: number, guesses = 20, hints = 0, onTime = true) => ({
   puzzle,
   guesses,
   hints,
   seconds: 300,
   solvedAt: "2026-08-18T10:00:00.000Z",
+  onTime,
 });
 
 const withSolves = (puzzles: number[]): StatsRecord =>
   puzzles.reduce((stats, puzzle) => recordSolve(stats, solve(puzzle)), EMPTY_STATS);
+
+/** Solved late - kept as a record, but never part of a streak. */
+const withReplays = (puzzles: number[]): StatsRecord =>
+  puzzles.reduce(
+    (stats, puzzle) => recordSolve(stats, solve(puzzle, 20, 0, false)),
+    EMPTY_STATS,
+  );
 
 describe("summarise", () => {
   it("reports nothing for a fresh player", () => {
@@ -53,12 +61,28 @@ describe("summarise", () => {
     expect(summary.maxStreak).toBe(4);
   });
 
-  it("lets an archive solve bridge a gap", () => {
-    // 77 was missed, then filled in from the archive: the run is whole again.
-    const before = summarise(withSolves([76, 78]), 78);
-    const after = summarise(withSolves([76, 77, 78]), 78);
-    expect(before.currentStreak).toBe(1);
-    expect(after.currentStreak).toBe(3);
+  it("does not let a replayed puzzle bridge a gap", () => {
+    // 77 was missed and finished later. The record is kept, but the streak
+    // stays broken: turning up daily is the thing being measured.
+    let stats = withSolves([76, 78]);
+    stats = recordSolve(stats, solve(77, 20, 0, false));
+    expect(summarise(stats, 78).currentStreak).toBe(1);
+  });
+
+  it("ignores replayed puzzles entirely when counting streaks", () => {
+    const stats = withReplays([70, 71, 72, 73, 74]);
+    const summary = summarise(stats, 74);
+    expect(summary.currentStreak).toBe(0);
+    expect(summary.maxStreak).toBe(0);
+    // They still count as games played.
+    expect(summary.played).toBe(5);
+  });
+
+  it("counts a mixed run only up to the replayed day", () => {
+    let stats = withSolves([76, 77, 78]);
+    stats = recordSolve(stats, solve(75, 20, 0, false));
+    // 75 was caught up later, so the run is 76-78, not 75-78.
+    expect(summarise(stats, 78).currentStreak).toBe(3);
   });
 
   it("counts every puzzle started, solved or not", () => {

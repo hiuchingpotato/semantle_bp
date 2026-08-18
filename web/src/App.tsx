@@ -1,7 +1,7 @@
 import { useGame } from "./game/useGame";
 import OrbitField from "./plot/OrbitField";
 import AboutPanel from "./ui/AboutPanel";
-import ArchivePanel from "./ui/ArchivePanel";
+import Calendar from "./ui/Calendar";
 import GuessForm from "./ui/GuessForm";
 import GuessList from "./ui/GuessList";
 import SolvedPanel from "./ui/SolvedPanel";
@@ -82,22 +82,28 @@ export default function App() {
 
           <GuessList guesses={game.guesses} focus={game.focus} />
 
-          <ArchivePanel
-            todayNumber={game.todayNumber}
-            activeNumber={game.puzzle.number}
-          />
+          {/* Directly under the words played, so the input travels with the
+              list rather than being pinned away from it. */}
+          {!game.solved && (
+            <GuessForm
+              disabled={false}
+              notice={game.notice}
+              hint={game.hint}
+              onSubmit={game.submitGuess}
+              onHint={game.takeHint}
+            />
+          )}
+
+          {game.manifest && (
+            <Calendar
+              epoch={game.manifest.epoch}
+              todayNumber={game.todayNumber}
+              activeNumber={game.puzzle.number}
+              stats={game.statsRecord}
+            />
+          )}
           <AboutPanel manifest={game.manifest} />
         </div>
-
-        {!game.solved && (
-          <GuessForm
-            disabled={false}
-            notice={game.notice}
-            hint={game.hint}
-            onSubmit={game.submitGuess}
-            onHint={game.takeHint}
-          />
-        )}
       </main>
 
       {game.solved && game.showWin && (
