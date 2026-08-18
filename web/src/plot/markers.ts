@@ -57,6 +57,23 @@ export function markerBandForRank(rank: number): MarkerBand {
 export const MARKER_HEIGHT = 41;
 export const MARKER_FOCUS_HEIGHT = 49;
 
+/** Gold halo drawn behind the answer. Matches --tone-solved in styles.css. */
+export const ANSWER_GLOW_COLOUR = "#ffd684";
+
+/**
+ * How far the halo reaches past the artwork, in pixels.
+ *
+ * Canvas shadows fade out across their blur radius, so the radius is set from
+ * this rather than used directly - a blur of 5 would be barely visible 5px out.
+ */
+export const ANSWER_GLOW_SPREAD = 5;
+
+/**
+ * Redraws of the halo. One pass gives a wash too faint to read against the
+ * board; each pass deepens the same shadow without widening it.
+ */
+export const ANSWER_GLOW_PASSES = 3;
+
 /** Height of the bob, in pixels. Small - it should read as hovering, not bouncing. */
 export const FLOAT_AMPLITUDE = 2.5;
 

@@ -2,6 +2,9 @@ import { bandForRank } from "../game/bands";
 import { MAX_RADIUS, radiusForRank } from "../game/geometry";
 import type { Guess } from "../game/types";
 import {
+  ANSWER_GLOW_COLOUR,
+  ANSWER_GLOW_PASSES,
+  ANSWER_GLOW_SPREAD,
   MARKER_FOCUS_HEIGHT,
   MARKER_HEIGHT,
   MarkerSet,
@@ -299,6 +302,7 @@ export class OrbitRenderer {
         isFocus,
         revealed: guess.revealed,
         scale: this.markers.scaleForRank(guess.rank),
+        isAnswer: guess.rank === 0,
       });
 
       if (guess.rank === 0) {
@@ -347,9 +351,10 @@ export class OrbitRenderer {
       isFocus: boolean;
       revealed: boolean;
       scale: number;
+      isAnswer: boolean;
     },
   ): number {
-    const { px, py, marker, band, isFocus, revealed, scale } = options;
+    const { px, py, marker, band, isFocus, revealed, scale, isAnswer } = options;
 
     if (!marker) {
       // Image not loaded, or missing. Fall back to the dot rather than showing
@@ -376,8 +381,27 @@ export class OrbitRenderer {
     ctx.fill();
     ctx.restore();
 
+    if (isAnswer) {
+      // Gold halo around the silhouette. A canvas shadow blurs the image's own
+      // alpha, so this hugs the character rather than boxing it.
+      //
+      // The blur radius is the reach itself, not double it: the repeat passes
+      // lift the faint tail of the blur above visibility, so a radius of 2x
+      // measured about 10px of halo rather than the 5 intended.
+      ctx.save();
+      ctx.shadowColor = ANSWER_GLOW_COLOUR;
+      ctx.shadowBlur = ANSWER_GLOW_SPREAD;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
+      for (let pass = 0; pass < ANSWER_GLOW_PASSES; pass++) {
+        ctx.drawImage(marker, px - width / 2, top, width, height);
+      }
+      ctx.restore();
+    }
+
     ctx.save();
-    if (isFocus) {
+    if (isFocus && !isAnswer) {
+      // The answer has its own halo; two glows on one marker muddies both.
       ctx.shadowColor = toneColour(band.tone, 0.85);
       ctx.shadowBlur = 12;
     }
