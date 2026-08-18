@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -8,6 +8,7 @@ import { bandForRank } from "./bands";
 import { parseLayout, parsePuzzle } from "./format";
 import { projectAll, radiusForRank } from "./geometry";
 import { hintAvailability } from "./hints";
+import { MARKER_BANDS } from "../plot/markers";
 import type { Guess, Manifest } from "./types";
 
 /**
@@ -70,6 +71,15 @@ describe("built data", () => {
     // tools/wordfilters.py and is enforced at build time.
     for (const banned of ["fuck", "nigger", "cunt", "rape", "porn"]) {
       expect(vocabulary).not.toContain(banned);
+    }
+  });
+
+  it("ships every marker image the renderer asks for", () => {
+    // A missing file degrades silently to the old dot at runtime, which is the
+    // right behaviour in a browser but would hide a broken build. Fail here.
+    for (const band of MARKER_BANDS) {
+      const file = join(DATA, "..", "markers", band.file);
+      expect(existsSync(file), `missing marker: ${band.file}`).toBe(true);
     }
   });
 

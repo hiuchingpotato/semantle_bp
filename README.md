@@ -74,10 +74,22 @@ Puzzle file layout, little-endian:
 
 A record's position **is** its rank, so there is nothing to sort at runtime.
 
+### Marker artwork
+
+Source art lives in `assets/images` at roughly 950x1725. The board draws it at
+28-34px, so `tools/build_markers.sh` resamples it to 160px tall into
+`web/public/markers` — 852KB down to 124KB, and a cleaner result than asking the
+browser to scale 1725px to 34px in one step. Re-run it after changing the art.
+
+Which character appears for which rank is the table at the top of
+`web/src/plot/markers.ts`; the display size is two constants below it.
+
 ### Repository layout
 
 ```
+assets/images/         source marker artwork, full resolution
 tools/
+  build_markers.sh     resample markers -> web/public/markers
   build_data.py        GloVe -> vocab.json, layout.bin, puzzles/*.bin
   answers.txt          curated answer list, one word per line
   check_answers.py     validates answers.txt against the built vocabulary
