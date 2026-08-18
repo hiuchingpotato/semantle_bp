@@ -709,3 +709,179 @@ button:disabled {
     display: none;
   }
 }
+
+/* ------------------------------------------------------- the answer row */
+
+/* The word that won is deliberately louder than the words that missed:
+   larger type and more weight, so it reads as a result rather than a row. */
+.guess-row.is-answer {
+  padding: 0.6rem 0.5rem;
+  background: rgba(255, 214, 132, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(255, 214, 132, 0.3);
+}
+
+.guess-row.is-answer .guess-word {
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--tone-solved);
+}
+
+/* ---------------------------------------------------------------- modal */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(5, 8, 17, 0.72);
+  backdrop-filter: blur(6px);
+  animation: fade-in 160ms ease-out;
+}
+
+.modal {
+  position: relative;
+  width: min(26rem, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 1.75rem 1.5rem 1.25rem;
+  text-align: center;
+  background: #121a2e;
+  border: 1px solid rgba(255, 214, 132, 0.28);
+  border-radius: 14px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  animation: rise-in 200ms cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+}
+
+/* An unexpected pop is disorienting for some players, and the animation is
+   decoration - the dialog works identically without it. */
+@media (prefers-reduced-motion: reduce) {
+  .modal-backdrop,
+  .modal {
+    animation: none;
+  }
+}
+
+.modal-close {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.6rem;
+  width: 2rem;
+  height: 2rem;
+  font-size: 1.3rem;
+  line-height: 1;
+  color: var(--text-faint);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.modal-close:hover {
+  color: var(--text);
+  background: rgba(146, 170, 214, 0.12);
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--tone-solved);
+}
+
+.modal-lede {
+  margin: 0.9rem 0 0;
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.modal-word {
+  margin: 0.1rem 0 0;
+  font-size: 2.4rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+  color: var(--text);
+}
+
+.modal-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  margin: 1.25rem 0 0;
+  padding: 0.85rem 0;
+  border-top: 1px solid var(--ink-line);
+  border-bottom: 1px solid var(--ink-line);
+}
+
+.modal-stats div {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 0.15rem;
+}
+
+.modal-stats dt {
+  font-size: 0.68rem;
+  line-height: 1.25;
+  color: var(--text-faint);
+}
+
+.modal-stats dd {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.modal-result {
+  margin: 0.85rem 0 0;
+  font-size: 0.88rem;
+  color: var(--text-dim);
+}
+
+.modal-note {
+  margin: 0.5rem 0 0;
+  font-size: 0.75rem;
+  color: var(--text-faint);
+}
+
+.modal-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1.1rem;
+}
+
+.modal-actions .button-primary,
+.modal-actions .button-ghost {
+  flex: 1;
+  padding: 0.65rem 1rem;
+  font-size: 0.9rem;
+}
+
+.modal-share-note {
+  min-height: 1.6rem;
+  margin: 0.6rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--text-faint);
+}

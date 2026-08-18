@@ -1,3 +1,4 @@
+import { formatDuration } from "../game/stats";
 import type { Guess } from "../game/types";
 
 /**
@@ -46,18 +47,57 @@ export function sparkline(guesses: readonly Guess[], wordCount: number): string 
   return out.join("");
 }
 
-export function buildShareText(
-  puzzleNumber: number,
-  guesses: readonly Guess[],
-  wordCount: number,
-): string {
-  const hints = guesses.filter((guess) => guess.revealed).length;
-  const lines = [
-    `Closer #${puzzleNumber} · solved in ${guesses.length}`,
-    sparkline(guesses, wordCount),
+/**
+ * Where to send someone who wants a go.
+ *
+ * Derived from the running page rather than hard-coded, so the same build works
+ * on GitHub Pages, a preview deploy or localhost without anyone remembering to
+ * update a constant. The query string is dropped: a friend should land on
+ * today's puzzle, not the archive puzzle you happened to be playing.
+ */
+export function gameUrl(): string {
+  if (typeof window === "undefined") return "";
+  const { origin } = window.location;
+  const base = import.meta.env.BASE_URL || "/";
+  return `${origin}${base}`;
+}
+
+export type ShareSummary = {
+  puzzleNumber: number;
+  guesses: number;
+  hints: number;
+  seconds: number | null;
+};
+
+/**
+ * The message a player sends their friends.
+ *
+ * Says nothing about the word, the guesses or how close anyone got - only how
+ * long it took. Anything richer risks leaking the answer to someone who has not
+ * played yet, which would defeat the point of sharing it.
+ */
+export function buildShareText(summary: ShareSummary): string {
+  const parts = [
+    `${summary.guesses} ${summary.guesses === 1 ? "guess" : "guesses"}`,
   ];
-  if (hints > 0) {
-    lines.push(`${hints} ${hints === 1 ? "hint" : "hints"} used`);
+  if (summary.seconds !== null) {
+    parts.push(`time: ${formatDuration(summary.seconds)}`);
   }
-  return lines.filter(Boolean).join("\n");
+  parts.push(`hints: ${summary.hints}`);
+
+  return [
+    `Closer - Daily Demo ${summary.puzzleNumber}`,
+    parts.join(", "),
+    gameUrl(),
+  ].join("\n");
+}
+
+/**
+ * WhatsApp accepts a prefilled message over a link; Instagram does not. It has
+ * no web intent for text at all, so the honest options are the system share
+ * sheet - which lists Instagram alongside everything else the device has - or
+ * copying the text. See WinModal for how that is presented.
+ */
+export function whatsAppUrl(text: string): string {
+  return `https://wa.me/?text=${encodeURIComponent(text)}`;
 }

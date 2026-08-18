@@ -12,7 +12,25 @@ import {
   normaliseGuess,
 } from "./loader";
 import { readRequestedPuzzle, resolveSchedule } from "./schedule";
-import { loadProgress, loadSolved, markSolved, saveProgress } from "./storage";
+import {
+  EMPTY_STATS,
+  findSolve,
+  recordSolve,
+  recordStart,
+  summarise,
+  type StatsRecord,
+  type StatsSummary,
+} from "./stats";
+import {
+  loadProgress,
+  loadSolved,
+  loadStartedAt,
+  loadStats,
+  markSolved,
+  markStarted,
+  saveProgress,
+  saveStats,
+} from "./storage";
 import type { Guess, Manifest, Puzzle, SavedProgress } from "./types";
 
 export type GameStatus = "loading" | "ready" | "error";
@@ -38,6 +56,14 @@ export type GameState = {
   submitGuess: (raw: string) => void;
   takeHint: () => void;
   hint: ReturnType<typeof hintAvailability>;
+  /** Games played and streaks, across every puzzle. */
+  stats: StatsSummary;
+  /** Seconds from first guess to solve, once solved. */
+  elapsedSeconds: number | null;
+  /** True while the congratulations modal should be on screen. */
+  showWin: boolean;
+  dismissWin: () => void;
+  reopenWin: () => void;
 };
 
 export function useGame(now: Date = new Date()): GameState {
@@ -61,8 +87,16 @@ export function useGame(now: Date = new Date()): GameState {
     isArchive: false,
     exhausted: false,
   });
+  const [stats, setStats] = useState<StatsRecord>(EMPTY_STATS);
+  const [elapsedSeconds, setElapsedSeconds] = useState<number | null>(null);
+  const [showWin, setShowWin] = useState(false);
 
   const wordIndex = useMemo(() => buildWordIndex(vocabulary), [vocabulary]);
+  const statsRef = useRef<StatsRecord>(EMPTY_STATS);
+  statsRef.current = stats;
+  // When the first guess of this puzzle happened. Set on load if the player is
+  // resuming, otherwise on their first guess.
+  const startedAtRef = useRef<Date | null>(null);
   // Guess submission reads the current board; a ref keeps the callback stable
   // so the input box doesn't re-subscribe on every keystroke.
   const guessesRef = useRef<Guess[]>([]);
@@ -96,9 +130,14 @@ export function useGame(now: Date = new Date()): GameState {
           loadedManifest.wordCount,
         );
 
-        const saved = await loadProgress(resolved.active);
-        const wasSolved = await loadSolved(resolved.active);
+        const [saved, wasSolved, startedAt, loadedStats] = await Promise.all([
+          loadProgress(resolved.active),
+          loadSolved(resolved.active),
+          loadStartedAt(resolved.active),
+          loadStats(),
+        ]);
         if (cancelled) return;
+        startedAtRef.current = startedAt;
 
         const lookup = buildWordIndex(loadedVocabulary);
         const restored: Guess[] = [];
@@ -128,7 +167,18 @@ export function useGame(now: Date = new Date()): GameState {
         // picks up where it left off rather than zoomed all the way out.
         const best = [...restored].sort((a, b) => a.rank - b.rank)[0];
         if (best) setFocus(best);
-        setSolved(wasSolved !== null || restored.some((g) => g.rank === 0));
+
+        const alreadySolved =
+          wasSolved !== null || restored.some((g) => g.rank === 0);
+        setStats(loadedStats);
+        setSolved(alreadySolved);
+        // A puzzle solved in an earlier session keeps its recorded time rather
+        // than recomputing from a stale clock. The modal stays closed - it is a
+        // reward for the moment of solving, not something to greet you on every
+        // reload; SolvedPanel has a button to bring it back.
+        if (alreadySolved) {
+          setElapsedSeconds(findSolve(loadedStats, resolved.active)?.seconds ?? null);
+        }
         setStatus("ready");
       } catch (cause) {
         if (cancelled) return;
@@ -190,9 +240,35 @@ export function useGame(now: Date = new Date()): GameState {
       setAnnouncement(describeGuess(word, rank, played.similarity));
       persist(puzzle.number, next);
 
+      const at = new Date();
+      if (!startedAtRef.current) {
+        startedAtRef.current = at;
+        void markStarted(puzzle.number, at);
+        const started = recordStart(statsRef.current, puzzle.number);
+        statsRef.current = started;
+        setStats(started);
+        void saveStats(started);
+      }
+
       if (rank === 0) {
+        const seconds = Math.round(
+          (at.getTime() - (startedAtRef.current ?? at).getTime()) / 1000,
+        );
         setSolved(true);
-        void markSolved(puzzle.number, new Date());
+        setElapsedSeconds(seconds);
+        setShowWin(true);
+        void markSolved(puzzle.number, at);
+
+        const recorded = recordSolve(statsRef.current, {
+          puzzle: puzzle.number,
+          guesses: next.length,
+          hints: next.filter((guess) => guess.revealed).length,
+          seconds,
+          solvedAt: at.toISOString(),
+        });
+        statsRef.current = recorded;
+        setStats(recorded);
+        void saveStats(recorded);
       }
     },
     [persist, puzzle],
@@ -215,6 +291,13 @@ export function useGame(now: Date = new Date()): GameState {
   );
 
   const hint = useMemo(() => hintAvailability(guesses), [guesses]);
+
+  // Stable identities. WinModal keys its focus-trap effect on onClose, so a new
+  // function every render would tear the effect down and re-run it constantly -
+  // and its cleanup restores focus, which would yank focus out of the dialog on
+  // every keystroke.
+  const dismissWin = useCallback(() => setShowWin(false), []);
+  const reopenWin = useCallback(() => setShowWin(true), []);
 
   const takeHint = useCallback(() => {
     if (!puzzle || !hint.available) return;
@@ -243,5 +326,10 @@ export function useGame(now: Date = new Date()): GameState {
     submitGuess,
     takeHint,
     hint,
+    stats: summarise(stats, schedule.today),
+    elapsedSeconds,
+    showWin,
+    dismissWin,
+    reopenWin,
   };
 }

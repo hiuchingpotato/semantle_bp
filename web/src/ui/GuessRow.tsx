@@ -18,9 +18,11 @@ export default function GuessRow({ guess, isFocus }: Props) {
 
   return (
     <li
+      // The answer is set apart from the words that missed - larger type, not
+      // just another colour, so it reads as the result rather than one more row.
       className={`guess-row tone-${band.tone}${isFocus ? " is-focus" : ""}${
         guess.revealed ? " is-revealed" : ""
-      }`}
+      }${guess.rank === 0 ? " is-answer" : ""}`}
     >
       <span className="guess-turn" aria-hidden="true">
         {guess.turn}

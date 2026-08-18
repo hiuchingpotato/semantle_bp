@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 
 import { nextRollover } from "../game/schedule";
+import { formatDuration } from "../game/stats";
 import type { Guess } from "../game/types";
-import { buildShareText, sparkline } from "./share";
+import { sparkline } from "./share";
 
 type Props = {
   puzzleNumber: number;
@@ -10,6 +11,8 @@ type Props = {
   wordCount: number;
   secretWord: string;
   isArchive: boolean;
+  elapsedSeconds: number | null;
+  onShowSummary: () => void;
 };
 
 function useCountdown(target: Date): string {
@@ -31,36 +34,32 @@ function useCountdown(target: Date): string {
     .join(":");
 }
 
+/**
+ * The persistent record in the rail, once the modal has been dismissed.
+ *
+ * Sharing lives in the modal rather than being duplicated here; this keeps a
+ * button to bring it back, so a result is never one stray click from being
+ * unreachable.
+ */
 export default function SolvedPanel({
   puzzleNumber,
   guesses,
   wordCount,
   secretWord,
   isArchive,
+  elapsedSeconds,
+  onShowSummary,
 }: Props) {
-  const [copied, setCopied] = useState(false);
   const countdown = useCountdown(nextRollover(new Date()));
   const hints = guesses.filter((guess) => guess.revealed).length;
 
-  const copy = async () => {
-    const text = buildShareText(puzzleNumber, guesses, wordCount);
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2500);
-    } catch {
-      // Clipboard is permission-gated and blocked outright in some contexts.
-      // Falling back to a prompt beats a button that silently does nothing.
-      window.prompt("Copy your result", text);
-    }
-  };
-
   return (
     <section className="panel panel-solved" aria-labelledby="solved-heading">
-      <h2 id="solved-heading">Solved</h2>
+      <h2 id="solved-heading">Solved &mdash; puzzle {puzzleNumber}</h2>
       <p className="solved-word">{secretWord}</p>
       <p className="solved-summary">
         {guesses.length} {guesses.length === 1 ? "word" : "words"}
+        {elapsedSeconds !== null && ` · ${formatDuration(elapsedSeconds)}`}
         {hints > 0 && ` · ${hints} ${hints === 1 ? "hint" : "hints"}`}
       </p>
       <p className="solved-spark" aria-hidden="true">
@@ -68,8 +67,8 @@ export default function SolvedPanel({
       </p>
 
       <div className="solved-actions">
-        <button type="button" className="button-primary" onClick={copy}>
-          {copied ? "Copied" : "Copy result"}
+        <button type="button" className="button-primary" onClick={onShowSummary}>
+          Share result
         </button>
         {!isArchive && (
           <span className="countdown">

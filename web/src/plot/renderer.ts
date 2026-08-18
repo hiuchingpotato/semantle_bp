@@ -302,14 +302,16 @@ export class OrbitRenderer {
     ctx.stroke();
 
     if (solved) {
+      // Twice the size of a guess label: the answer should be the largest thing
+      // on the board, not merely a different colour.
       ctx.font =
-        "700 14px ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif";
+        "700 24px ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif";
       ctx.textAlign = "center";
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 4;
       ctx.strokeStyle = "rgba(8, 12, 26, 0.9)";
-      ctx.strokeText(secretWord, px, py - 16);
+      ctx.strokeText(secretWord, px, py - 20);
       ctx.fillStyle = "#ffd684";
-      ctx.fillText(secretWord, px, py - 16);
+      ctx.fillText(secretWord, px, py - 20);
     }
 
     ctx.restore();

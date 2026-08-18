@@ -1,5 +1,6 @@
 import { del, get, set } from "idb-keyval";
 
+import { EMPTY_STATS, reviveStats, type StatsRecord } from "./stats";
 import type { SavedProgress } from "./types";
 
 /**
@@ -19,6 +20,8 @@ const NAMESPACE = "closer";
 
 const progressKey = (puzzle: number) => `${NAMESPACE}/progress/${puzzle}`;
 const solvedKey = (puzzle: number) => `${NAMESPACE}/solved/${puzzle}`;
+const startedKey = (puzzle: number) => `${NAMESPACE}/started/${puzzle}`;
+const statsKey = `${NAMESPACE}/stats`;
 
 export async function loadProgress(puzzle: number): Promise<SavedProgress[]> {
   try {
@@ -68,7 +71,62 @@ export async function markSolved(puzzle: number, when: Date): Promise<void> {
 
 export async function clearPuzzle(puzzle: number): Promise<void> {
   try {
-    await Promise.all([del(progressKey(puzzle)), del(solvedKey(puzzle))]);
+    await Promise.all([
+      del(progressKey(puzzle)),
+      del(solvedKey(puzzle)),
+      del(startedKey(puzzle)),
+    ]);
+  } catch {
+    /* see loadProgress */
+  }
+}
+
+/**
+ * When the player made their first guess on a puzzle.
+ *
+ * Stored rather than held in memory so that the timer survives a reload - a
+ * long game is often played across several sittings, and restarting the clock
+ * every time the tab is reopened would make the reported time meaningless.
+ *
+ * It is wall-clock time, not time spent playing: leave the tab open overnight
+ * and the number reflects that. Measuring attention rather than elapsed time
+ * would mean tracking focus and idle state, which is a lot of machinery for a
+ * line in a share message.
+ */
+export async function loadStartedAt(puzzle: number): Promise<Date | null> {
+  try {
+    const stored = await get<string>(startedKey(puzzle));
+    if (typeof stored !== "string") return null;
+    const parsed = new Date(stored);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  } catch {
+    return null;
+  }
+}
+
+/** First write wins, so the clock is not reset by a later guess. */
+export async function markStarted(puzzle: number, when: Date): Promise<Date> {
+  try {
+    const existing = await loadStartedAt(puzzle);
+    if (existing) return existing;
+    await set(startedKey(puzzle), when.toISOString());
+  } catch {
+    /* see loadProgress */
+  }
+  return when;
+}
+
+export async function loadStats(): Promise<StatsRecord> {
+  try {
+    return reviveStats(await get(statsKey));
+  } catch {
+    return EMPTY_STATS;
+  }
+}
+
+export async function saveStats(stats: StatsRecord): Promise<void> {
+  try {
+    await set(statsKey, stats);
   } catch {
     /* see loadProgress */
   }

@@ -5,6 +5,7 @@ import ArchivePanel from "./ui/ArchivePanel";
 import GuessForm from "./ui/GuessForm";
 import GuessList from "./ui/GuessList";
 import SolvedPanel from "./ui/SolvedPanel";
+import WinModal from "./ui/WinModal";
 
 export default function App() {
   const game = useGame();
@@ -73,6 +74,8 @@ export default function App() {
               wordCount={game.puzzle.wordCount}
               secretWord={secretWord}
               isArchive={game.isArchive}
+              elapsedSeconds={game.elapsedSeconds}
+              onShowSummary={game.reopenWin}
             />
           )}
 
@@ -95,6 +98,18 @@ export default function App() {
           />
         )}
       </main>
+
+      {game.solved && game.showWin && (
+        <WinModal
+          puzzleNumber={game.puzzle.number}
+          secretWord={secretWord}
+          guesses={game.guesses}
+          elapsedSeconds={game.elapsedSeconds}
+          stats={game.stats}
+          isArchive={game.isArchive}
+          onClose={game.dismissWin}
+        />
+      )}
 
       {/* Single live region for guess results, so a screen reader hears the
           outcome without having to go looking for the new row. */}

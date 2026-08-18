@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import type { Guess } from "../game/types";
-import { bestRankTrajectory, buildShareText, sparkline } from "./share";
+import {
+  bestRankTrajectory,
+  buildShareText,
+  gameUrl,
+  sparkline,
+  whatsAppUrl,
+} from "./share";
 
 function board(ranks: number[], revealedTurns: number[] = []): Guess[] {
   return ranks.map((rank, i) => ({
@@ -55,15 +61,51 @@ describe("sparkline", () => {
 });
 
 describe("buildShareText", () => {
-  it("reports guesses and hints without naming the word", () => {
-    const text = buildShareText(75, board([9000, 400, 0], [2]), 60_000);
-    expect(text).toContain("Closer #75");
-    expect(text).toContain("solved in 3");
-    expect(text).toContain("1 hint used");
-    expect(text).not.toContain("w0");
+  const summary = { puzzleNumber: 78, guesses: 42, hints: 2, seconds: 451 };
+
+  it("uses the agreed format", () => {
+    const [heading, detail] = buildShareText(summary).split("\n");
+    expect(heading).toBe("Closer - Daily Demo 78");
+    expect(detail).toBe("42 guesses, time: 07:31, hints: 2");
   });
 
-  it("omits the hint line when none were taken", () => {
-    expect(buildShareText(1, board([500, 0]), 60_000)).not.toContain("hint");
+  it("ends with a link so a friend can play", () => {
+    const lines = buildShareText(summary).split("\n");
+    expect(lines).toHaveLength(3);
+    // These tests run without a DOM, so gameUrl() is empty here; the line still
+    // exists, which is what the format guarantees.
+    expect(lines[2]).toBe(gameUrl());
+  });
+
+  it("gives nothing away about the word", () => {
+    const text = buildShareText(summary).toLowerCase();
+    for (const leak of ["rabbit", "closest", "rank", "similarity"]) {
+      expect(text).not.toContain(leak);
+    }
+  });
+
+  it("drops the time when it was never recorded", () => {
+    const text = buildShareText({ ...summary, seconds: null });
+    expect(text).toContain("42 guesses, hints: 2");
+    expect(text).not.toContain("time:");
+  });
+
+  it("reports zero hints rather than omitting the line", () => {
+    // Silence would be ambiguous: it should be clear the puzzle was solved
+    // unaided, not leave the reader to infer it.
+    expect(buildShareText({ ...summary, hints: 0 })).toContain("hints: 0");
+  });
+
+  it("says guess, singular, for a one-guess game", () => {
+    expect(buildShareText({ ...summary, guesses: 1 })).toContain("1 guess,");
+  });
+});
+
+describe("whatsAppUrl", () => {
+  it("encodes the message into the deep link", () => {
+    const url = whatsAppUrl("Closer - Daily Demo 78\n42 guesses");
+    expect(url.startsWith("https://wa.me/?text=")).toBe(true);
+    expect(url).toContain("Daily%20Demo%2078");
+    expect(url).toContain("%0A");
   });
 });
