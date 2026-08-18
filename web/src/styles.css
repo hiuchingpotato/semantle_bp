@@ -1136,3 +1136,17 @@ button:disabled {
 .panel-calendar [hidden] {
   display: none;
 }
+
+.panel-stats-button {
+  padding: 0.85rem 0.75rem;
+}
+
+/* Secondary text on a collapsed row - the streak beside Statistics, the month
+   beside Calendar. */
+.panel-peek {
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-dim);
+}

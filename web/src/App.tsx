@@ -5,6 +5,7 @@ import Calendar from "./ui/Calendar";
 import GuessForm from "./ui/GuessForm";
 import GuessList from "./ui/GuessList";
 import SolvedPanel from "./ui/SolvedPanel";
+import StatsButton from "./ui/StatsButton";
 import StatsModal from "./ui/StatsModal";
 import WinModal from "./ui/WinModal";
 
@@ -76,7 +77,6 @@ export default function App() {
               secretWord={secretWord}
               isArchive={game.isArchive}
               elapsedSeconds={game.elapsedSeconds}
-              onShowStats={game.openStats}
             />
           )}
 
@@ -93,6 +93,8 @@ export default function App() {
               onHint={game.takeHint}
             />
           )}
+
+          <StatsButton stats={game.stats} onOpen={game.openStats} />
 
           {game.manifest && (
             <Calendar

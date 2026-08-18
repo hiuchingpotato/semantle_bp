@@ -13,7 +13,6 @@ type Props = {
   secretWord: string;
   isArchive: boolean;
   elapsedSeconds: number | null;
-  onShowStats: () => void;
 };
 
 function useCountdown(target: Date): string {
@@ -49,7 +48,6 @@ export default function SolvedPanel({
   secretWord,
   isArchive,
   elapsedSeconds,
-  onShowStats,
 }: Props) {
   const countdown = useCountdown(nextRollover(new Date()));
   const hints = guesses.filter((guess) => guess.revealed).length;
@@ -75,12 +73,11 @@ export default function SolvedPanel({
         {sparkline(guesses, wordCount)}
       </p>
 
+      {/* Statistics lives above the calendar now, reachable whether or not
+          today has been finished, so it is not repeated here. */}
       <div className="solved-actions">
         <button type="button" className="button-primary" onClick={copy}>
           {copied ? "Copied!" : "Share result"}
-        </button>
-        <button type="button" className="button-ghost" onClick={onShowStats}>
-          Statistics
         </button>
       </div>
 
