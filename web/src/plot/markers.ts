@@ -19,6 +19,9 @@ export type MarkerBand = {
 };
 
 export const MARKER_BANDS: readonly MarkerBand[] = [
+  // The answer itself. Same character as the hottest band, drawn large - it is
+  // the end of the game and should dominate the board.
+  { maxRank: 0, file: "4_hot_sauce.png", name: "answer", scale: 1.6 },
   { maxRank: 9, file: "4_hot_sauce.png", name: "hot sauce", scale: 1 },
   { maxRank: 49, file: "3_sausage.png", name: "hot dog", scale: 1 },
   { maxRank: 299, file: "6_drumstick.png", name: "drumstick", scale: 1 },

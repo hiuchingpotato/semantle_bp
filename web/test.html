@@ -60,7 +60,7 @@
       }
       .marker-grid {
         display: grid;
-        grid-template-columns: 4.5rem repeat(7, 1fr);
+        grid-template-columns: 4.5rem repeat(8, 1fr);
         gap: 0.5rem;
         align-items: end;
         padding: 1rem 0.75rem;
@@ -274,6 +274,7 @@ https://hiuchingpotato.github.io/semantle_bp/</pre>
       // Kept in step with MARKER_BANDS in src/plot/markers.ts by hand - this
       // page cannot import it, because modules do not load over file://.
       const MARKERS = [
+        { file: "4_hot_sauce.png", range: "0 · answer", scale: 1.6 },
         { file: "4_hot_sauce.png", range: "1–9", scale: 1 },
         { file: "3_sausage.png", range: "10–49", scale: 1 },
         { file: "6_drumstick.png", range: "50–299", scale: 1 },

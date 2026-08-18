@@ -12,7 +12,8 @@ import {
 
 describe("markerBandForRank", () => {
   it("runs hottest to coldest as rank grows", () => {
-    expect(markerBandForRank(0).name).toBe("hot sauce");
+    expect(markerBandForRank(0).name).toBe("answer");
+    expect(markerBandForRank(1).name).toBe("hot sauce");
     expect(markerBandForRank(9).name).toBe("hot sauce");
     expect(markerBandForRank(10).name).toBe("hot dog");
     expect(markerBandForRank(49).name).toBe("hot dog");
@@ -35,10 +36,17 @@ describe("markerBandForRank", () => {
     expect(markerBandForRank(25_000).scale).toBeCloseTo(0.6, 6);
   });
 
-  it("draws every other band at full size", () => {
-    for (const rank of [0, 10, 50, 300, 3000, 10_000, 24_999]) {
+  it("draws every ordinary band at full size", () => {
+    for (const rank of [1, 10, 50, 300, 3000, 10_000, 24_999]) {
       expect(markerBandForRank(rank).scale).toBe(1);
     }
+  });
+
+  it("blows the answer up and keeps its character", () => {
+    expect(markerBandForRank(0).scale).toBeCloseTo(1.6, 6);
+    // Same artwork as the hottest guesses, so winning does not introduce a
+    // character the player has never seen.
+    expect(markerBandForRank(0).file).toBe(markerBandForRank(1).file);
   });
 
   it("covers every rank without a gap", () => {
@@ -48,10 +56,11 @@ describe("markerBandForRank", () => {
   });
 
   it("uses all six characters", () => {
-    // Seven bands, six images: the slushie appears twice, at two sizes.
+    // Eight bands, six images: the hot sauce and the slushie each appear twice,
+    // at two sizes.
     const files = MARKER_BANDS.map((band) => band.file);
     expect(new Set(files).size).toBe(6);
-    expect(files).toHaveLength(7);
+    expect(files).toHaveLength(8);
   });
 
   it("never gets colder as the guess improves", () => {

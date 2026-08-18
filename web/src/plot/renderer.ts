@@ -213,8 +213,8 @@ export class OrbitRenderer {
 
     ctx.setTransform(viewport.dpr, 0, 0, viewport.dpr, 0, 0);
     this.drawGuides(ctx, input);
-    this.drawGuesses(ctx, input);
-    this.drawCentre(ctx, input);
+    const answerTop = this.drawGuesses(ctx, input);
+    this.drawCentre(ctx, input, answerTop);
   }
 
   private drawGuides(ctx: CanvasRenderingContext2D, input: RenderInput): void {
@@ -250,8 +250,16 @@ export class OrbitRenderer {
     ctx.restore();
   }
 
-  private drawGuesses(ctx: CanvasRenderingContext2D, input: RenderInput): void {
+  /**
+   * Draws every played word. Returns the top edge of the answer's marker, so
+   * the caller can place the gold label above the artwork instead of across it.
+   */
+  private drawGuesses(
+    ctx: CanvasRenderingContext2D,
+    input: RenderInput,
+  ): number | null {
     const { camera, viewport, xs, ys, guesses, focus } = input;
+    let answerTop: number | null = null;
 
     // Label budget: the focus, then the best guesses, and only where they do
     // not collide. A hundred overlapping labels is worse than none.
@@ -293,6 +301,13 @@ export class OrbitRenderer {
         scale: this.markers.scaleForRank(guess.rank),
       });
 
+      if (guess.rank === 0) {
+        // The answer gets exactly one label, drawn by drawCentre in gold. This
+        // would be a second, smaller copy of the same word on top of it.
+        answerTop = markerTop;
+        continue;
+      }
+
       if (!labelSet.has(guess.vocabIndex)) continue;
       const collides = claimed.some(
         (taken) => Math.abs(taken.x - px) < 54 && Math.abs(taken.y - py) < 22,
@@ -311,6 +326,7 @@ export class OrbitRenderer {
     }
 
     ctx.restore();
+    return answerTop;
   }
 
   /**
@@ -373,7 +389,11 @@ export class OrbitRenderer {
     return top;
   }
 
-  private drawCentre(ctx: CanvasRenderingContext2D, input: RenderInput): void {
+  private drawCentre(
+    ctx: CanvasRenderingContext2D,
+    input: RenderInput,
+    answerTop: number | null,
+  ): void {
     const { camera, viewport, solved, secretWord } = input;
     const { px, py } = boardToScreen(0, 0, camera, viewport);
 
@@ -396,16 +416,21 @@ export class OrbitRenderer {
     ctx.stroke();
 
     if (solved) {
-      // Twice the size of a guess label: the answer should be the largest thing
-      // on the board, not merely a different colour.
+      // The only label on the answer: drawGuesses skips rank 0 so this does not
+      // end up as a second, smaller copy of the same word underneath.
+      //
+      // Sits above the artwork when the marker has drawn, and falls back to the
+      // anchor point when it has not loaded yet.
+      const labelY = answerTop !== null ? answerTop - 8 : py - 20;
+
       ctx.font =
         "700 24px ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif";
       ctx.textAlign = "center";
       ctx.lineWidth = 4;
       ctx.strokeStyle = "rgba(8, 12, 26, 0.9)";
-      ctx.strokeText(secretWord, px, py - 20);
+      ctx.strokeText(secretWord, px, labelY);
       ctx.fillStyle = "#ffd684";
-      ctx.fillText(secretWord, px, py - 20);
+      ctx.fillText(secretWord, px, labelY);
     }
 
     ctx.restore();
