@@ -5,11 +5,12 @@ import { projectAll } from "./geometry";
 import { hintAvailability } from "./hints";
 import {
   buildWordIndex,
+  fetchAliases,
   fetchLayout,
   fetchManifest,
   fetchPuzzle,
   fetchVocabulary,
-  normaliseGuess,
+  resolveGuess,
 } from "./loader";
 import { readRequestedPuzzle, resolveSchedule } from "./schedule";
 import {
@@ -95,6 +96,7 @@ export function useGame(now: Date = new Date()): GameState {
   const [elapsedSeconds, setElapsedSeconds] = useState<number | null>(null);
   const [showWin, setShowWin] = useState(false);
   const [showStats, setShowStats] = useState(false);
+  const [aliases, setAliases] = useState<Record<string, string>>({});
 
   const wordIndex = useMemo(() => buildWordIndex(vocabulary), [vocabulary]);
   const statsRef = useRef<StatsRecord>(EMPTY_STATS);
@@ -122,11 +124,13 @@ export function useGame(now: Date = new Date()): GameState {
           readRequestedPuzzle(window.location.search),
         );
 
-        const [loadedVocabulary, layout, loadedPuzzle] = await Promise.all([
-          fetchVocabulary(),
-          fetchLayout(loadedManifest.wordCount),
-          fetchPuzzle(resolved.active, loadedManifest),
-        ]);
+        const [loadedVocabulary, layout, loadedPuzzle, loadedAliases] =
+          await Promise.all([
+            fetchVocabulary(),
+            fetchLayout(loadedManifest.wordCount),
+            fetchPuzzle(resolved.active, loadedManifest),
+            fetchAliases(),
+          ]);
         if (cancelled) return;
 
         const projected = projectAll(
@@ -147,8 +151,11 @@ export function useGame(now: Date = new Date()): GameState {
         const lookup = buildWordIndex(loadedVocabulary);
         const restored: Guess[] = [];
         for (const entry of saved) {
-          const vocabIndex = lookup.get(entry.word);
-          if (vocabIndex === undefined) continue;
+          // Resolved rather than looked up directly: a game saved as "colour"
+          // must come back scored against "color", the same as when played.
+          const resolvedWord = resolveGuess(entry.word, lookup, loadedAliases);
+          if (!resolvedWord) continue;
+          const { vocabIndex } = resolvedWord;
           const rank = loadedPuzzle.rankByVocabIndex[vocabIndex];
           if (rank === undefined || rank < 0) continue;
           restored.push({
@@ -165,6 +172,7 @@ export function useGame(now: Date = new Date()): GameState {
         setManifest(loadedManifest);
         setSchedule(resolved);
         setVocabulary(loadedVocabulary);
+        setAliases(loadedAliases);
         setPuzzle(loadedPuzzle);
         setPositions(projected);
         setGuesses(restored);
@@ -219,12 +227,22 @@ export function useGame(now: Date = new Date()): GameState {
         return;
       }
 
-      const existing = guessesRef.current.find((guess) => guess.word === word);
+      // Matched on the entry, not the spelling: having played "colour", typing
+      // "color" is the same word again and must not score twice.
+      const existing = guessesRef.current.find(
+        (guess) => guess.vocabIndex === vocabIndex,
+      );
       if (existing) {
         // Re-guessing is not an error; centre the board on it and say so.
         setFocus(existing);
-        setNotice(`Already played "${word}"`);
-        setAnnouncement(describeGuess(word, existing.rank, existing.similarity));
+        setNotice(
+          existing.word === word
+            ? `Already played "${word}"`
+            : `Already played "${existing.word}" — same word`,
+        );
+        setAnnouncement(
+          describeGuess(existing.word, existing.rank, existing.similarity),
+        );
         return;
       }
 
@@ -281,18 +299,18 @@ export function useGame(now: Date = new Date()): GameState {
 
   const submitGuess = useCallback(
     (raw: string) => {
-      const word = normaliseGuess(raw);
-      if (!word) return;
-
-      const vocabIndex = wordIndex.get(word);
-      if (vocabIndex === undefined) {
-        setNotice(`"${word}" isn't a word I know`);
-        setAnnouncement(`${word} is not in the word list.`);
+      const resolved = resolveGuess(raw, wordIndex, aliases);
+      if (!resolved) {
+        const typed = raw.trim().toLowerCase();
+        if (!typed) return;
+        setNotice(`"${typed}" isn't a word I know`);
+        setAnnouncement(`${typed} is not in the word list.`);
         return;
       }
-      play(word, vocabIndex, false);
+      // The typed spelling is what gets shown; the resolved entry is what scores.
+      play(resolved.typed, resolved.vocabIndex, false);
     },
-    [play, wordIndex],
+    [aliases, play, wordIndex],
   );
 
   const hint = useMemo(() => hintAvailability(guesses), [guesses]);

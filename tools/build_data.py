@@ -32,6 +32,7 @@ from pathlib import Path
 
 import numpy as np
 
+import spelling
 from wordfilters import BLOCKED_EXACT, BLOCKED_SUBSTRINGS
 
 REPO = Path(__file__).resolve().parent.parent
@@ -195,6 +196,56 @@ def choose_secrets(words: list[str], count: int, seed: int) -> list[int]:
     return [rank[word] for word in chosen]
 
 
+# Two spellings of one word sit close together in the embedding. The cut is
+# where the candidates separate cleanly: everything at 0.42 and above is a real
+# pair (offence/offense, sabre/saber), and everything at 0.35 and below is either
+# a rule misfiring (timbre/timber, poured/pored) or a pair whose senses have
+# genuinely diverged in the corpus - storey/story, draught/draft - where aliasing
+# would score the player against the wrong meaning.
+ALIAS_MIN_SIMILARITY = 0.40
+
+
+def build_aliases(words: list[str], unit: np.ndarray) -> dict[str, str]:
+    """Map British spellings onto their American entry.
+
+    Both spellings are guessable either way; this makes them *score the same*.
+    Without it a player typing "flavour" is quietly penalised, because the two
+    forms are separate vectors and the corpus is American - "flavor" ranks
+    7,664th by frequency and "flavour" 29,943rd, so the same idea lands in
+    different bands against the same answer.
+
+    Rules generate candidates; the embedding decides. A candidate is kept only if
+    both forms exist and their vectors agree, which catches rule misfires without
+    anyone having to predict them.
+    """
+    rank = {word: index for index, word in enumerate(words)}
+    aliases: dict[str, str] = {}
+    rejected: list[tuple[str, str, float]] = []
+
+    for word in words:
+        for candidate in spelling.candidates(word):
+            target = rank.get(candidate)
+            if target is None or candidate == word:
+                continue
+            similarity = float(unit[rank[word]] @ unit[target])
+            if similarity < ALIAS_MIN_SIMILARITY:
+                rejected.append((word, candidate, similarity))
+                continue
+            aliases[word] = candidate
+            break
+
+    # An alias must never point at another alias, or a lookup would need chasing.
+    for british, american in list(aliases.items()):
+        if american in aliases:
+            del aliases[british]
+
+    log(f"  {len(aliases)} spelling aliases, {len(rejected)} rejected by the embedding")
+    for word, candidate, similarity in sorted(rejected, key=lambda r: -r[2])[:5]:
+        log(f"    rejected {word} -> {candidate} ({similarity:.2f})")
+
+    return dict(sorted(aliases.items()))
+
+
 def write_puzzle(path: Path, secret_index: int, order: np.ndarray, sims: np.ndarray) -> None:
     header = struct.pack(
         "<4sHHII", MAGIC, FORMAT_VERSION, RECORD_SIZE, len(order), secret_index
@@ -231,6 +282,9 @@ def main() -> int:
     log("computing shared layout (PCA)")
     layout = compute_layout(unit, args.seed)
 
+    log("building spelling aliases")
+    aliases = build_aliases(words, unit)
+
     log("choosing answers")
     secrets = choose_secrets(words, args.puzzles, args.seed)
 
@@ -253,6 +307,7 @@ def main() -> int:
 
     (OUT / "vocab.json").write_text(json.dumps(words, separators=(",", ":")))
     (OUT / "layout.bin").write_bytes(layout.tobytes())
+    (OUT / "aliases.json").write_text(json.dumps(aliases, separators=(",", ":")))
 
     vocab_hash = hashlib.sha256(
         (OUT / "vocab.json").read_bytes()
@@ -263,6 +318,7 @@ def main() -> int:
         "recordSize": RECORD_SIZE,
         "headerSize": HEADER_SIZE,
         "wordCount": len(words),
+        "aliasCount": len(aliases),
         # float16 pairs in layout.bin: angle, then radial multiplier.
         "layoutStride": 2,
         "puzzleCount": len(secrets),

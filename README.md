@@ -120,6 +120,16 @@ someone whose job it is review it.
 grid-of-coloured-tiles format is the specific thing the New York Times has
 pursued Wordle clones over; avoiding it costs nothing.
 
+**British and American spellings score identically.** The corpus is American -
+`flavor` ranks 7,664th by frequency and `flavour` 29,943rd - so without this a UK
+player typing `flavour` lands in a worse band for the same idea. `build_aliases`
+generates candidates from suffix rules and then validates every one against the
+embedding, which is what makes the rules safe to keep loose: `timbre -> timber`
+and `poured -> pored` are rejected by the data rather than by anyone remembering
+to exclude them. Pairs whose senses have genuinely drifted apart -
+`storey/story`, `draught/draft` - are also left alone. The typed spelling is
+always what gets displayed back.
+
 **Rank is never carried by colour alone.** Every guess shows a band name, a pip
 meter and, inside the top 1,000, the number. The board is keyboard-operable and
 guess results go to a live region (WCAG 1.4.1, 2.1.1).

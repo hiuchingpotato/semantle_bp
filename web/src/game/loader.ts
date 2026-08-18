@@ -48,6 +48,24 @@ export async function fetchPuzzle(
   return parsePuzzle(buffer, puzzleNumber, manifest);
 }
 
+/**
+ * British spelling -> the American entry that carries the score.
+ *
+ * Built from the vocabulary and validated against the embedding; see
+ * build_aliases in tools/build_data.py.
+ */
+export async function fetchAliases(): Promise<Record<string, string>> {
+  const response = await fetch(`${DATA_ROOT}/aliases.json`, {
+    cache: "force-cache",
+  });
+  if (!response.ok) {
+    // Aliases are a fairness improvement, not a requirement - an older data
+    // build without the file should still be playable.
+    return {};
+  }
+  return (await response.json()) as Record<string, string>;
+}
+
 /** Word -> vocab index, for turning what someone typed into a lookup. */
 export function buildWordIndex(vocabulary: string[]): Map<string, number> {
   const index = new Map<string, number>();
@@ -66,4 +84,41 @@ export function normaliseGuess(raw: string): string {
     .toLowerCase()
     .replace(/[‘’]/g, "'")
     .replace(/[^a-z]/g, "");
+}
+
+export type ResolvedGuess = {
+  /** The entry that carries the score. */
+  vocabIndex: number;
+  /** What the player typed, after tidying. Shown back to them. */
+  typed: string;
+  /** True when a British spelling was scored as its American entry. */
+  aliased: boolean;
+};
+
+/**
+ * Turn what someone typed into the vocabulary entry that scores it.
+ *
+ * "colour" and "color" resolve to the same entry, so both get the same rank
+ * rather than the British speller being quietly penalised by a corpus that
+ * prefers American forms. The typed spelling is carried through and displayed -
+ * correcting someone's spelling back at them is exactly the annoyance this is
+ * meant to remove.
+ */
+export function resolveGuess(
+  raw: string,
+  wordIndex: Map<string, number>,
+  aliases: Record<string, string>,
+): ResolvedGuess | null {
+  const typed = normaliseGuess(raw);
+  if (!typed) return null;
+
+  const canonical = aliases[typed];
+  if (canonical !== undefined) {
+    const index = wordIndex.get(canonical);
+    if (index !== undefined) return { vocabIndex: index, typed, aliased: true };
+  }
+
+  const index = wordIndex.get(typed);
+  if (index === undefined) return null;
+  return { vocabIndex: index, typed, aliased: false };
 }

@@ -83,6 +83,48 @@ describe("built data", () => {
     }
   });
 
+  it("ships spelling aliases that all resolve", () => {
+    const aliases = JSON.parse(
+      readFileSync(join(DATA, "aliases.json"), "utf8"),
+    ) as Record<string, string>;
+    const entries = Object.entries(aliases);
+    expect(entries.length).toBeGreaterThan(100);
+
+    const known = new Set(vocabulary);
+    for (const [british, american] of entries) {
+      expect(known.has(british), `alias source missing: ${british}`).toBe(true);
+      expect(known.has(american), `alias target missing: ${american}`).toBe(true);
+      // A chain would mean a lookup has to be followed more than once.
+      expect(aliases[american], `${american} is itself aliased`).toBeUndefined();
+      expect(british).not.toBe(american);
+    }
+  });
+
+  it("aliases the spellings a British player will actually type", () => {
+    const aliases = JSON.parse(
+      readFileSync(join(DATA, "aliases.json"), "utf8"),
+    ) as Record<string, string>;
+    const expected: Record<string, string> = {
+      colour: "color",
+      flavour: "flavor",
+      centre: "center",
+      theatre: "theater",
+      realise: "realize",
+      defence: "defense",
+      grey: "gray",
+      harbour: "harbor",
+      neighbour: "neighbor",
+      organisation: "organization",
+      travelling: "traveling",
+      analyse: "analyze",
+      apologise: "apologize",
+      aluminium: "aluminum",
+    };
+    for (const [british, american] of Object.entries(expected)) {
+      expect(aliases[british], `${british} should alias`).toBe(american);
+    }
+  });
+
   it("keeps the vocabulary to plain lowercase words", () => {
     for (const word of vocabulary) {
       expect(word).toMatch(/^[a-z]{3,}$/);
