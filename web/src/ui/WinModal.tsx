@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { formatDuration } from "../game/stats";
 import type { StatsSummary } from "../game/stats";
 import type { Guess } from "../game/types";
-import { buildShareText, whatsAppUrl } from "./share";
+import { buildShareText } from "./share";
 
 type Props = {
   puzzleNumber: number;
@@ -32,7 +32,6 @@ export default function WinModal({
   onClose,
 }: Props) {
   const [copied, setCopied] = useState(false);
-  const [shareError, setShareError] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const restoreFocusTo = useRef<Element | null>(null);
@@ -44,13 +43,6 @@ export default function WinModal({
     hints,
     seconds: elapsedSeconds,
   });
-
-  // The system share sheet only exists on mobile and in some desktop browsers,
-  // and only over HTTPS. Checked once rather than per render so the buttons do
-  // not change under the player's finger.
-  const [canUseShareSheet] = useState(
-    () => typeof navigator !== "undefined" && typeof navigator.share === "function",
-  );
 
   useEffect(() => {
     restoreFocusTo.current = document.activeElement;
@@ -90,32 +82,23 @@ export default function WinModal({
     };
   }, [onClose]);
 
+  /**
+   * Sharing is copy-to-clipboard.
+   *
+   * The system share sheet looks tidier but only exists on some devices and
+   * only over HTTPS, so the same button behaved differently for different
+   * players. Copying works everywhere and leaves the player in control of where
+   * it goes - including Instagram, which cannot receive text from a link at all.
+   */
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(shareText);
       setCopied(true);
-      setShareError(null);
       window.setTimeout(() => setCopied(false), 2500);
     } catch {
       // Clipboard access is permission-gated and blocked outright in some
       // contexts. A prompt is ugly but it always works.
       window.prompt("Copy your result", shareText);
-    }
-  };
-
-  const share = async () => {
-    if (!canUseShareSheet) {
-      window.open(whatsAppUrl(shareText), "_blank", "noopener,noreferrer");
-      return;
-    }
-    try {
-      await navigator.share({ title: "Closer", text: shareText });
-      setShareError(null);
-    } catch (cause) {
-      // Dismissing the sheet rejects with AbortError. That is not a failure and
-      // must not be reported as one.
-      if (cause instanceof Error && cause.name === "AbortError") return;
-      setShareError("Sharing was blocked - use Copy instead.");
     }
   };
 
@@ -178,19 +161,18 @@ export default function WinModal({
         )}
 
         <div className="modal-actions">
-          <button type="button" className="button-primary" onClick={share}>
-            {canUseShareSheet ? "Share with friends" : "Share on WhatsApp"}
+          <button type="button" className="button-primary" onClick={copy}>
+            {copied ? "Copied!" : "Share with friends"}
           </button>
-          <button type="button" className="button-ghost" onClick={copy}>
-            {copied ? "Copied" : "Copy"}
+          <button type="button" className="button-ghost" onClick={onClose}>
+            Dismiss
           </button>
         </div>
 
         <p className="modal-share-note" role="status">
-          {shareError ??
-            (canUseShareSheet
-              ? "Opens your share sheet - WhatsApp, Instagram, Messages."
-              : "Instagram has no way to receive text from a link, so copy and paste it there.")}
+          {copied
+            ? "Copied — paste it into WhatsApp, Instagram or anywhere else."
+            : "Copies your result and a link to the game."}
         </p>
       </div>
     </div>

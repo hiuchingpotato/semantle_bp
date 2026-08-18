@@ -201,12 +201,16 @@ https://hiuchingpotato.github.io/semantle_bp/</pre>
         <p class="modal-result">42 guesses · 07:31 · 2 hints</p>
 
         <div class="modal-actions">
-          <button type="button" class="button-primary">Share with friends</button>
-          <button type="button" class="button-ghost">Copy</button>
+          <button type="button" class="button-primary" id="modal-copy">
+            Share with friends
+          </button>
+          <button type="button" class="button-ghost" id="modal-dismiss">
+            Dismiss
+          </button>
         </div>
 
-        <p class="modal-share-note">
-          Opens your share sheet - WhatsApp, Instagram, Messages.
+        <p class="modal-share-note" id="modal-note">
+          Copies your result and a link to the game.
         </p>
       </div>
     </div>
@@ -228,17 +232,41 @@ https://hiuchingpotato.github.io/semantle_bp/</pre>
         if (event.key === "Escape") close();
       });
 
-      document.getElementById("copy").addEventListener("click", async (event) => {
-        const button = event.currentTarget;
+      async function copyResult(button, restoreLabel, note) {
         try {
           await navigator.clipboard.writeText(share.textContent);
-          button.textContent = "Copied";
-          setTimeout(() => (button.textContent = "Test copy format"), 2000);
+          button.textContent = "Copied!";
+          if (note) {
+            note.textContent =
+              "Copied — paste it into WhatsApp, Instagram or anywhere else.";
+          }
+          setTimeout(() => {
+            button.textContent = restoreLabel;
+            if (note) note.textContent = "Copies your result and a link to the game.";
+          }, 2500);
         } catch {
           // Clipboard access is often refused over file://; the prompt always works.
           window.prompt("Copy", share.textContent);
         }
-      });
+      }
+
+      document
+        .getElementById("copy")
+        .addEventListener("click", (event) =>
+          copyResult(event.currentTarget, "Test copy format", null),
+        );
+
+      document
+        .getElementById("modal-copy")
+        .addEventListener("click", (event) =>
+          copyResult(
+            event.currentTarget,
+            "Share with friends",
+            document.getElementById("modal-note"),
+          ),
+        );
+
+      document.getElementById("modal-dismiss").addEventListener("click", close);
     </script>
   </body>
 </html>

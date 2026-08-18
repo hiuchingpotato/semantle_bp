@@ -1,13 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Guess } from "../game/types";
-import {
-  bestRankTrajectory,
-  buildShareText,
-  gameUrl,
-  sparkline,
-  whatsAppUrl,
-} from "./share";
+import { bestRankTrajectory, buildShareText, gameUrl, sparkline } from "./share";
 
 function board(ranks: number[], revealedTurns: number[] = []): Guess[] {
   return ranks.map((rank, i) => ({
@@ -101,11 +95,3 @@ describe("buildShareText", () => {
   });
 });
 
-describe("whatsAppUrl", () => {
-  it("encodes the message into the deep link", () => {
-    const url = whatsAppUrl("Closer - Daily Demo 78\n42 guesses");
-    expect(url.startsWith("https://wa.me/?text=")).toBe(true);
-    expect(url).toContain("Daily%20Demo%2078");
-    expect(url).toContain("%0A");
-  });
-});

@@ -92,12 +92,3 @@ export function buildShareText(summary: ShareSummary): string {
   ].join("\n");
 }
 
-/**
- * WhatsApp accepts a prefilled message over a link; Instagram does not. It has
- * no web intent for text at all, so the honest options are the system share
- * sheet - which lists Instagram alongside everything else the device has - or
- * copying the text. See WinModal for how that is presented.
- */
-export function whatsAppUrl(text: string): string {
-  return `https://wa.me/?text=${encodeURIComponent(text)}`;
-}
