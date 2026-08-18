@@ -56,6 +56,10 @@ body {
   color: var(--text);
   overflow: hidden;
   overscroll-behavior: none;
+  /* Panning and scrolling still work; pinch-zoom and double-tap-zoom of the
+     page do not. The board opts out again with touch-action: none, because it
+     handles its own gestures. */
+  touch-action: pan-x pan-y;
 }
 
 .visually-hidden {
@@ -125,8 +129,10 @@ body {
 /* --------------------------------------------------------------- layout */
 
 .app {
-  position: relative;
-  height: 100%;
+  /* Fixed, not relative: the interface is anchored to the viewport, so nothing
+     drifts if the page is ever scrolled or zoomed by other means. */
+  position: fixed;
+  inset: 0;
   /* Sits under any notch or home indicator on a phone. */
   padding: env(safe-area-inset-top) env(safe-area-inset-right)
     env(safe-area-inset-bottom) env(safe-area-inset-left);
@@ -157,6 +163,8 @@ body {
 
 .orbit-controls {
   position: absolute;
+  /* Not `manipulation`: that re-permits pinch-zoom on the element. */
+  touch-action: pan-x pan-y;
   left: 1rem;
   bottom: 1rem;
   display: flex;
@@ -195,6 +203,7 @@ body {
 
 .app-header {
   position: absolute;
+  touch-action: pan-x pan-y;
   top: 1rem;
   left: 1rem;
   pointer-events: none;
@@ -252,6 +261,8 @@ body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  /* Scrolls, but a pinch here must not zoom the page. */
+  touch-action: pan-y;
   padding: 1rem 1rem 0.5rem;
   display: flex;
   flex-direction: column;

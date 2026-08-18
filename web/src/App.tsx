@@ -8,9 +8,11 @@ import SolvedPanel from "./ui/SolvedPanel";
 import StatsButton from "./ui/StatsButton";
 import StatsModal from "./ui/StatsModal";
 import WinModal from "./ui/WinModal";
+import { usePageZoomGuard } from "./ui/usePageZoomGuard";
 
 export default function App() {
   const game = useGame();
+  usePageZoomGuard();
 
   if (game.status === "loading") {
     return (
