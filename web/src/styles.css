@@ -1150,3 +1150,62 @@ button:disabled {
   text-transform: none;
   color: var(--text-dim);
 }
+
+/* ---------------------------------------------------------- help button */
+
+/* Square, under the title. The header is pointer-events:none so it does not
+   block dragging the board, so the button has to opt back in. */
+.help-button {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  margin-top: 0.5rem;
+  padding: 0;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 650;
+  line-height: 1;
+  color: var(--text-dim);
+  background: var(--ink-raised);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--ink-line);
+  border-radius: 7px;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.help-button:hover {
+  color: var(--text);
+  border-color: rgba(146, 170, 214, 0.4);
+}
+
+/* The About dialog is long-form reading, so it gets more width than the
+   result dialogs and its own scroll. */
+.modal-about {
+  width: min(32rem, 100%);
+  max-height: 85vh;
+  text-align: left;
+}
+
+.modal-about .modal-title {
+  text-align: left;
+}
+
+.modal-about h3 {
+  margin: 1.15rem 0 0.3rem;
+  font-size: 0.9rem;
+  font-weight: 650;
+  color: var(--text);
+}
+
+.modal-about p {
+  margin: 0 0 0.6rem;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--text-dim);
+}
+
+.modal-about .modal-actions {
+  margin-top: 1.25rem;
+}

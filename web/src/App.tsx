@@ -1,6 +1,6 @@
 import { useGame } from "./game/useGame";
 import OrbitField from "./plot/OrbitField";
-import AboutPanel from "./ui/AboutPanel";
+import AboutModal from "./ui/AboutModal";
 import Calendar from "./ui/Calendar";
 import GuessForm from "./ui/GuessForm";
 import GuessList from "./ui/GuessList";
@@ -65,6 +65,15 @@ export default function App() {
             for more.
           </p>
         )}
+        <button
+          type="button"
+          className="help-button"
+          onClick={game.openAbout}
+          aria-label="How this works"
+          title="How this works"
+        >
+          ?
+        </button>
       </header>
 
       <main className="rail" aria-label="Your words">
@@ -104,7 +113,6 @@ export default function App() {
               stats={game.statsRecord}
             />
           )}
-          <AboutPanel manifest={game.manifest} />
         </div>
       </main>
 
@@ -122,6 +130,10 @@ export default function App() {
 
       {game.showStats && (
         <StatsModal stats={game.stats} onClose={game.dismissStats} />
+      )}
+
+      {game.showAbout && (
+        <AboutModal manifest={game.manifest} onClose={game.dismissAbout} />
       )}
 
       {/* Single live region for guess results, so a screen reader hears the

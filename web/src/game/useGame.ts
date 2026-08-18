@@ -71,6 +71,10 @@ export type GameState = {
   showStats: boolean;
   openStats: () => void;
   dismissStats: () => void;
+  /** True while the how-it-works modal should be on screen. */
+  showAbout: boolean;
+  openAbout: () => void;
+  dismissAbout: () => void;
 };
 
 export function useGame(now: Date = new Date()): GameState {
@@ -98,6 +102,7 @@ export function useGame(now: Date = new Date()): GameState {
   const [elapsedSeconds, setElapsedSeconds] = useState<number | null>(null);
   const [showWin, setShowWin] = useState(false);
   const [showStats, setShowStats] = useState(false);
+  const [showAbout, setShowAbout] = useState(false);
   const [aliases, setAliases] = useState<Record<string, string>>({});
 
   const wordIndex = useMemo(() => buildWordIndex(vocabulary), [vocabulary]);
@@ -336,6 +341,8 @@ export function useGame(now: Date = new Date()): GameState {
   const reopenWin = useCallback(() => setShowWin(true), []);
   const openStats = useCallback(() => setShowStats(true), []);
   const dismissStats = useCallback(() => setShowStats(false), []);
+  const openAbout = useCallback(() => setShowAbout(true), []);
+  const dismissAbout = useCallback(() => setShowAbout(false), []);
 
   const takeHint = useCallback(() => {
     if (!puzzle || !hint.available) return;
@@ -373,5 +380,8 @@ export function useGame(now: Date = new Date()): GameState {
     showStats,
     openStats,
     dismissStats,
+    showAbout,
+    openAbout,
+    dismissAbout,
   };
 }
