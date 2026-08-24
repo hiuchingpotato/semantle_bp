@@ -10,8 +10,11 @@ import {
   OPACITY,
   SIZE,
   SPIN_TURNS,
+  ZOOM_FADE_END,
+  ZOOM_FADE_START,
   drifterAt,
   spawnDrifter,
+  zoomFade,
 } from "./drifters";
 import { ANSWER_SCALE, MARKER_HEIGHT } from "./markers";
 
@@ -223,6 +226,41 @@ describe("Drifters", () => {
     drifters.update(0, W, H, []);
     drifters.update(MAX_GAP + 1, W, H, []);
     expect(drifters.current).toBeNull();
+  });
+});
+
+describe("zoomFade", () => {
+  it("stays fully visible however far the board is zoomed out", () => {
+    for (const zoom of [0.05, 0.2, 0.5, 0.9, 1, ZOOM_FADE_START]) {
+      expect(zoomFade(zoom)).toBe(1);
+    }
+  });
+
+  it("is gone at 1.6x and beyond", () => {
+    expect(ZOOM_FADE_END).toBe(1.6);
+    for (const zoom of [ZOOM_FADE_END, 2, 10, 150]) {
+      expect(zoomFade(zoom)).toBe(0);
+    }
+  });
+
+  it("fades rather than cutting", () => {
+    const mid = (ZOOM_FADE_START + ZOOM_FADE_END) / 2;
+    expect(zoomFade(mid)).toBeCloseTo(0.5, 6);
+
+    // Monotone all the way down, with no jump at either end.
+    let previous = 1;
+    for (let zoom = ZOOM_FADE_START; zoom <= ZOOM_FADE_END; zoom += 0.01) {
+      const fade = zoomFade(zoom);
+      expect(fade).toBeLessThanOrEqual(previous + 1e-9);
+      expect(fade).toBeGreaterThanOrEqual(0);
+      previous = fade;
+    }
+  });
+
+  it("survives a nonsense zoom", () => {
+    expect(zoomFade(NaN)).toBe(1);
+    expect(zoomFade(-5)).toBe(1);
+    expect(zoomFade(Infinity)).toBe(1);
   });
 });
 

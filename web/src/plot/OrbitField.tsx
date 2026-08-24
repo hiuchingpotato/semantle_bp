@@ -6,6 +6,7 @@ import {
   Camera,
   OrbitRenderer,
   Viewport,
+  ZOOM_REFERENCE,
   fitCamera,
   frameOn,
   screenToBoard,
@@ -387,7 +388,7 @@ export default function OrbitField({
           &minus;
         </button>
         <span className="orbit-zoom" aria-hidden="true">
-          {(zoomLabel / 400).toFixed(1)}&times;
+          {(zoomLabel / ZOOM_REFERENCE).toFixed(1)}&times;
         </span>
       </div>
     </div>

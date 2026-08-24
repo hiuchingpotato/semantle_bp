@@ -42,6 +42,12 @@ export type Viewport = {
   dpr: number;
 };
 
+/**
+ * Camera scale that the zoom readout calls 1.0x. Shared so the drifter fade and
+ * the number on screen cannot disagree about what a zoom level means.
+ */
+export const ZOOM_REFERENCE = 400;
+
 /** Rings mark the ranks a player is trying to cross. */
 const GUIDE_RANKS = [10, 100, 1000, 10_000] as const;
 
@@ -211,7 +217,12 @@ export class OrbitRenderer {
         viewport.height,
         this.markers.readyFiles,
       );
-      this.drifters.draw(ctx, input.timeMs, (file) => this.markers.byFile(file));
+      this.drifters.draw(
+        ctx,
+        input.timeMs,
+        (file) => this.markers.byFile(file),
+        input.camera.scale / ZOOM_REFERENCE,
+      );
     }
 
     // The dust layer works in device pixels, so it is written with the

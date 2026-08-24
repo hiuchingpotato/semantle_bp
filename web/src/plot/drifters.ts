@@ -49,6 +49,24 @@ export const OPACITY = 0.5;
  */
 export const SPIN_TURNS = 1.2;
 
+/**
+ * Zoom levels, in the units the on-screen readout uses.
+ *
+ * Zoomed out, a drifting character is scenery and stays put however far the
+ * board is pulled back. Zoomed in, the player is working on a handful of words
+ * and a large spinning sprite crossing the view is just in the way - so it
+ * fades out rather than being cut, which would read as a glitch.
+ */
+export const ZOOM_FADE_START = 1.2;
+export const ZOOM_FADE_END = 1.6;
+
+/** Multiplier on OPACITY for the current zoom: 1 when out, 0 at FADE_END. */
+export function zoomFade(zoom: number): number {
+  if (!Number.isFinite(zoom) || zoom <= ZOOM_FADE_START) return 1;
+  if (zoom >= ZOOM_FADE_END) return 0;
+  return 1 - (zoom - ZOOM_FADE_START) / (ZOOM_FADE_END - ZOOM_FADE_START);
+}
+
 /** Extra clearance beyond the edge, so a sprite never touches it. */
 export const EDGE_MARGIN = 8;
 
@@ -185,9 +203,14 @@ export class Drifters {
     ctx: CanvasRenderingContext2D,
     now: number,
     resolve: (file: string) => HTMLImageElement | null,
+    zoom: number,
   ): void {
     const drifter = this.active;
     if (!drifter) return;
+
+    const alpha = OPACITY * zoomFade(zoom);
+    // Fully faded: skip the work rather than draw nothing.
+    if (alpha <= 0.001) return;
 
     const image = resolve(drifter.file);
     if (!image) return;
@@ -199,7 +222,7 @@ export class Drifters {
     const width = (image.naturalWidth / image.naturalHeight) * height;
 
     ctx.save();
-    ctx.globalAlpha = OPACITY;
+    ctx.globalAlpha = alpha;
     ctx.translate(x, y);
     ctx.rotate(rotation);
     ctx.drawImage(image, -width / 2, -height / 2, width, height);
