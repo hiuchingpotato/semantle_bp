@@ -125,6 +125,28 @@ describe("built data", () => {
     }
   });
 
+  it("knows the everyday words a player will actually type", () => {
+    // The vocabulary was once the 60,000 most frequent GloVe tokens, which left
+    // out quiche (63,848th) and cremate (83,572nd) while keeping thousands of
+    // surnames. Being told "I don't know that word" about ordinary English is
+    // the worst thing this game can do, so it is guarded rather than assumed.
+    const known = new Set(vocabulary);
+    const everyday = [
+      "quiche", "cremate", "omelette", "paella", "scone", "crumpet",
+      "marzipan", "gherkin", "kipper", "trifle", "aubergine", "sieve",
+      "doily", "gazebo", "laptop", "internet", "email", "bicycle",
+      "umbrella", "cinnamon", "walnut", "otter", "badger", "heron",
+    ];
+    const missing = everyday.filter((word) => !known.has(word));
+    expect(missing, `not guessable: ${missing.join(", ")}`).toEqual([]);
+  });
+
+  it("has a vocabulary large enough to cover ordinary English", () => {
+    // Frequency alone cannot reach far enough; the dictionary pass is what
+    // takes this past 100k. A sharp drop means that pass silently stopped.
+    expect(manifest.wordCount).toBeGreaterThan(100_000);
+  });
+
   it("keeps the vocabulary to plain lowercase words", () => {
     for (const word of vocabulary) {
       expect(word).toMatch(/^[a-z]{3,}$/);

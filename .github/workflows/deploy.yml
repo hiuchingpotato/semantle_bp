@@ -55,6 +55,13 @@ jobs:
           unzip -o glove.zip glove.6B.300d.txt -d .tooling/
           rm glove.zip
 
+      # Small (4MB) and public domain, so it is fetched rather than committed.
+      - name: Download the word list
+        run: |
+          mkdir -p .tooling
+          curl -sSfL -o .tooling/words_alpha.txt \
+            https://raw.githubusercontent.com/dwyl/english-words/master/words_alpha.txt
+
       - name: Build game data
         run: |
           pip install --quiet numpy

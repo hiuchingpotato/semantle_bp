@@ -24,6 +24,10 @@ python3 -m venv .tooling/venv && .tooling/venv/bin/pip install numpy
 curl -sL -o .tooling/glove.6B.zip \
   "https://huggingface.co/stanfordnlp/glove/resolve/main/glove.6B.zip"
 unzip -o .tooling/glove.6B.zip glove.6B.300d.txt -d .tooling/
+
+# 3. English word list, for deciding what counts as guessable (4MB)
+curl -sL -o .tooling/words_alpha.txt \
+  "https://raw.githubusercontent.com/dwyl/english-words/master/words_alpha.txt"
 ```
 
 Then:
@@ -102,6 +106,19 @@ web/
 ```
 
 ## Design decisions worth knowing
+
+**What counts as a guessable word is frequency *or* dictionary.** Frequency
+alone is a bad test: by 60,000 tokens into GloVe it is four-fifths surnames,
+place names and acronyms, while ordinary English like `quiche` (63,848th) and
+`cremate` (83,572nd) is still below the line. Cutting shallow enough to exclude
+the junk also excludes words people type. So the vocabulary is the most frequent
+30,000 tokens plus every deeper token a dictionary recognises — 105,187 words.
+
+**A word with no vector cannot be scored at all.** GloVe 6B is 2014 Wikipedia
+and US newswire, so a few real words are simply absent — `courgette` and
+`serviette` have no vector, and nothing in the pipeline can invent one. Being
+rejected is at least honest; scoring them would mean guessing. Swapping to a
+larger embedding is the only real fix, and it is a data change, not a code one.
 
 **Answers are hand-picked.** Every heuristic tried on this corpus produced
 answers like `spokesman` and `ministry` — GloVe 6B is Wikipedia plus newswire and

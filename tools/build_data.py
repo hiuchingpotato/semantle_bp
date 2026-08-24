@@ -37,6 +37,7 @@ from wordfilters import BLOCKED_EXACT, BLOCKED_SUBSTRINGS
 
 REPO = Path(__file__).resolve().parent.parent
 GLOVE = REPO / ".tooling" / "glove.6B.300d.txt"
+DICTIONARY = REPO / ".tooling" / "words_alpha.txt"
 ANSWERS = REPO / "tools" / "answers.txt"
 OUT = REPO / "web" / "public" / "data"
 
@@ -65,19 +66,53 @@ def is_blocked(word: str) -> bool:
     return any(frag in word for frag in BLOCKED_SUBSTRINGS)
 
 
-def load_vectors(path: Path, limit: int, scan_limit: int):
-    """Read the most frequent `limit` usable tokens from a GloVe text file.
+def load_dictionary(path: Path) -> set[str]:
+    """Real English words, used to decide what counts as guessable.
 
-    GloVe files are ordered most-frequent-first, so we can stop early. Vector
-    parsing is the expensive part, so tokens are filtered before they're parsed.
+    Frequency alone is a poor test. GloVe is ordered most-frequent-first, and by
+    60,000 tokens in it is four-fifths surnames, place names, acronyms and
+    foreign words - while ordinary English like "quiche" (63,848th) and "cremate"
+    (83,572nd) is still below the line. Cutting anywhere shallow enough to
+    exclude the junk also excludes words people actually type.
+
+    So the cut is: frequent *or* in the dictionary. The dictionary rescues real
+    words from the tail; the frequency floor keeps modern usage the dictionary
+    has not caught up with.
+    """
+    if not path.exists():
+        raise SystemExit(f"missing {path} - see the setup steps in README.md")
+
+    words = set()
+    with path.open("r", encoding="utf-8", errors="ignore") as handle:
+        for line in handle:
+            word = line.strip().lower()
+            if len(word) >= 3 and word.isalpha():
+                words.add(word)
+
+    log(f"  dictionary: {len(words)} words")
+    return words
+
+
+def load_vectors(
+    path: Path,
+    dictionary: set[str],
+    frequency_floor: int,
+    scan_limit: int,
+):
+    """Read usable tokens and their vectors from a GloVe text file.
+
+    A token is kept when it is among the first `frequency_floor` usable tokens,
+    or when the dictionary recognises it. Vector parsing is the expensive part,
+    so tokens are filtered before they are parsed.
     """
     words: list[str] = []
     rows: list[np.ndarray] = []
     skipped_blocked = 0
+    from_dictionary = 0
 
     with path.open("r", encoding="utf-8") as handle:
         for line_no, line in enumerate(handle):
-            if len(words) >= limit or line_no >= scan_limit:
+            if line_no >= scan_limit:
                 break
             space = line.find(" ")
             if space <= 0:
@@ -88,12 +123,20 @@ def load_vectors(path: Path, limit: int, scan_limit: int):
             if is_blocked(token):
                 skipped_blocked += 1
                 continue
+
+            frequent = len(words) < frequency_floor
+            if not frequent:
+                if token not in dictionary:
+                    continue
+                from_dictionary += 1
+
             rows.append(np.array(line[space + 1 :].split(), dtype=np.float32))
             words.append(token)
-            if len(words) % 10000 == 0:
+            if len(words) % 20000 == 0:
                 log(f"  ... {len(words)} words (scanned {line_no + 1} lines)")
 
     log(f"  filtered out {skipped_blocked} blocked tokens")
+    log(f"  {from_dictionary} words kept on the dictionary rather than frequency")
     matrix = np.vstack(rows)
     return words, matrix
 
@@ -258,20 +301,35 @@ def write_puzzle(path: Path, secret_index: int, order: np.ndarray, sims: np.ndar
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--words", type=int, default=60000, help="vocabulary size")
+    parser.add_argument(
+        "--frequency-floor",
+        type=int,
+        default=30000,
+        help="keep this many most-frequent tokens regardless of the dictionary",
+    )
     parser.add_argument(
         "--puzzles", type=int, default=0, help="puzzles to build (0 = every answer)"
     )
     parser.add_argument("--epoch", default="2026-08-18", help="date of puzzle #0")
-    parser.add_argument("--scan-limit", type=int, default=250000)
+    parser.add_argument(
+        "--scan-limit",
+        type=int,
+        default=400_000,
+        help="GloVe lines to read; the file holds 400,000",
+    )
     parser.add_argument("--seed", type=int, default=20260815)
     args = parser.parse_args()
 
     if not GLOVE.exists():
         raise SystemExit(f"missing {GLOVE} - see tools/README.md")
 
+    log("reading the dictionary")
+    dictionary = load_dictionary(DICTIONARY)
+
     log(f"reading {GLOVE.name}")
-    words, vectors = load_vectors(GLOVE, args.words, args.scan_limit)
+    words, vectors = load_vectors(
+        GLOVE, dictionary, args.frequency_floor, args.scan_limit
+    )
     log(f"vocabulary: {len(words)} words x {vectors.shape[1]} dims")
 
     log("normalising")
@@ -328,6 +386,7 @@ def main() -> int:
             "vectors": "GloVe 6B 300d (Stanford NLP)",
             "licence": "Public Domain Dedication and Licence (PDDL) v1.0",
             "url": "https://nlp.stanford.edu/projects/glove/",
+            "wordList": "dwyl/english-words (Unlicense)",
         },
     }
     (OUT / "manifest.json").write_text(json.dumps(manifest, indent=2))
