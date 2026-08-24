@@ -39,6 +39,8 @@ export type Manifest = {
    * existed, which the loader treats as an unversioned URL.
    */
   dataVersion?: string;
+  /** How many words may be offered as a hint. */
+  hintableCount?: number;
   source: { vectors: string; licence: string; url: string };
 };
 

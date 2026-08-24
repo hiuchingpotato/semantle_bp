@@ -1,4 +1,4 @@
-import { parseLayout, parsePuzzle } from "./format";
+import { parseHintable, parseLayout, parsePuzzle } from "./format";
 import type { Layout, Manifest, Puzzle } from "./types";
 
 // Relative to the deployed base, not the domain root: on GitHub Pages the site
@@ -55,6 +55,22 @@ export async function fetchLayout(
     await fetchBuffer(versioned("layout.bin", version)),
     wordCount,
   );
+}
+
+export async function fetchHintable(
+  wordCount: number,
+  version: string,
+): Promise<Uint8Array | null> {
+  try {
+    return parseHintable(
+      await fetchBuffer(versioned("hintable.bin", version)),
+      wordCount,
+    );
+  } catch {
+    // Hints fall back to picking purely by rank, which is how the game worked
+    // before the pool existed. Worse hints beat no game.
+    return null;
+  }
 }
 
 export async function fetchPuzzle(

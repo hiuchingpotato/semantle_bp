@@ -1,4 +1,5 @@
-import type { Guess } from "./types";
+import { isHintable } from "./format";
+import type { Guess, Puzzle } from "./types";
 
 /**
  * Hints halve the distance.
@@ -63,4 +64,46 @@ export function hintAvailability(guesses: readonly Guess[]): HintAvailability {
   }
 
   return { available: true, targetRank: Math.max(1, Math.floor(best / 2)) };
+}
+
+
+/**
+ * The word to reveal for a hint: the one nearest the target rank that the game
+ * is willing to say out loud.
+ *
+ * Taking whatever sits at the target rank is what produced "chippewa" for
+ * kettle - the vocabulary is wide by design, and American place names cluster
+ * around ordinary nouns. The pool of acceptable hints is built at build time;
+ * see load_hintable in tools/build_data.py.
+ *
+ * The search walks outward from the target so the hint stays as close to
+ * halfway as the pool allows, and prefers the closer side on a tie.
+ */
+export function chooseHintWord(
+  puzzle: Puzzle,
+  targetRank: number,
+  pool: Uint8Array | null,
+): number | null {
+  const clamped = Math.max(1, Math.min(targetRank, puzzle.wordCount - 1));
+  const at = (rank: number) => puzzle.indexByRank[rank] ?? null;
+
+  // No pool: the old behaviour, which is better than refusing to hint.
+  if (!pool) return at(clamped);
+
+  for (let offset = 0; offset < puzzle.wordCount; offset++) {
+    const closer = clamped - offset;
+    if (closer >= 1) {
+      const index = at(closer);
+      if (index !== null && isHintable(pool, index)) return index;
+    }
+    const further = clamped + offset;
+    if (offset > 0 && further < puzzle.wordCount) {
+      const index = at(further);
+      if (index !== null && isHintable(pool, index)) return index;
+    }
+    if (closer < 1 && further >= puzzle.wordCount) break;
+  }
+
+  // Nothing acceptable anywhere - fall back rather than swallow the hint.
+  return at(clamped);
 }

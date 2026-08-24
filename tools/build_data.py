@@ -38,6 +38,8 @@ from wordfilters import BLOCKED_EXACT, BLOCKED_SUBSTRINGS
 REPO = Path(__file__).resolve().parent.parent
 GLOVE = REPO / ".tooling" / "glove.6B.300d.txt"
 DICTIONARY = REPO / ".tooling" / "words_alpha.txt"
+EVERYDAY = REPO / ".tooling" / "everyday_en.txt"
+BRITISH = REPO / "tools" / "wordlists" / "british_en.txt"
 ANSWERS = REPO / "tools" / "answers.txt"
 OUT = REPO / "web" / "public" / "data"
 
@@ -139,6 +141,77 @@ def load_vectors(
     log(f"  {from_dictionary} words kept on the dictionary rather than frequency")
     matrix = np.vstack(rows)
     return words, matrix
+
+
+# Spoken-frequency rank a word must beat to be offered as a hint. Generous, so
+# that ordinary vocabulary survives; it is only here to catch words the British
+# list keeps but nobody says, like "mesozoic".
+HINT_SPEECH_RANK = 80_000
+
+# Rank in the spoken list below which a word is common enough to hint even if
+# the British list has not got it - which happens for inflections.
+HINT_COMMON_RANK = 15_000
+
+
+def load_hintable(words: list[str]) -> np.ndarray:
+    """Which words the game may offer as a hint.
+
+    Guessing and hinting want different lists. Guessing should accept anything
+    real, so the vocabulary is deliberately wide. A hint is the game speaking,
+    and it has to be a word the player plausibly knows: offering "chippewa" is
+    worse than offering nothing.
+
+    Neither frequency nor a dictionary settles this alone. Wikipedia frequency,
+    which is what orders the vocabulary, ranks American place names above
+    ordinary household words, and the large word lists carry proper nouns as
+    plain lowercase entries. Two signals together do work:
+
+    - A British word list that *preserves capitalisation*. An entry that only
+      ever appears capitalised is a proper noun, which is how Chippewa, Custer
+      and Monongahela are told apart from kettle. It is British on purpose:
+      courgette and aubergine are in it, and Americanisms have been removed.
+    - Spoken-word frequency, which knows that "mesozoic" is not something people
+      say even though it is an ordinary lowercase word.
+
+    Erring strict is deliberate. A good word missing from the hint pool costs
+    nothing - it stays guessable, and the hint falls to a neighbouring rank -
+    while one bad hint is visible and irritating.
+    """
+    common: set[str] = set()
+    proper: set[str] = set()
+    for line in BRITISH.read_text(encoding="utf-8", errors="ignore").splitlines():
+        entry = line.strip()
+        if entry.startswith("#") or not entry.isalpha() or len(entry) < 3:
+            continue
+        (proper if entry[0].isupper() else common).add(entry.lower())
+    # A word that appears both ways - "china" the country and the crockery - is
+    # a normal word, so only the capital-only entries count as proper nouns.
+    proper -= common
+
+    speech: dict[str, int] = {}
+    with EVERYDAY.open("r", encoding="utf-8", errors="ignore") as handle:
+        for line in handle:
+            parts = line.split()
+            if len(parts) == 2 and parts[0].isalpha():
+                speech.setdefault(parts[0].lower(), len(speech))
+
+    flags = np.zeros(len(words), dtype=bool)
+    for index, word in enumerate(words):
+        if word in proper:
+            continue
+        rank = speech.get(word, 1 << 30)
+        recognised = word in common or rank < HINT_COMMON_RANK
+        if recognised and rank < HINT_SPEECH_RANK:
+            flags[index] = True
+
+    log(f"  {len(proper)} proper nouns excluded from hints")
+    log(f"  {int(flags.sum())} of {len(words)} words may be offered as a hint")
+    return flags
+
+
+def pack_bits(flags: np.ndarray) -> bytes:
+    """One bit per word, so the whole hint pool is a few kilobytes."""
+    return np.packbits(flags, bitorder="little").tobytes()
 
 
 # How far to even out the angular distribution. 0 keeps the raw bearings, which
@@ -340,6 +413,9 @@ def main() -> int:
     log("computing shared layout (PCA)")
     layout = compute_layout(unit, args.seed)
 
+    log("choosing which words may be hints")
+    hintable = load_hintable(words)
+
     log("building spelling aliases")
     aliases = build_aliases(words, unit)
 
@@ -366,6 +442,7 @@ def main() -> int:
     (OUT / "vocab.json").write_text(json.dumps(words, separators=(",", ":")))
     (OUT / "layout.bin").write_bytes(layout.tobytes())
     (OUT / "aliases.json").write_text(json.dumps(aliases, separators=(",", ":")))
+    (OUT / "hintable.bin").write_bytes(pack_bits(hintable))
 
     vocab_hash = hashlib.sha256(
         (OUT / "vocab.json").read_bytes()
@@ -390,6 +467,7 @@ def main() -> int:
         "headerSize": HEADER_SIZE,
         "wordCount": len(words),
         "aliasCount": len(aliases),
+        "hintableCount": int(hintable.sum()),
         # float16 pairs in layout.bin: angle, then radial multiplier.
         "layoutStride": 2,
         "puzzleCount": len(secrets),

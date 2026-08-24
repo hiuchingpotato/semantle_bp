@@ -58,7 +58,7 @@ BLOCKED_EXACT = {
 # long tail of inflections without enumerating every one.
 BLOCKED_SUBSTRINGS = (
     "nigg", "faggot", "fuck", "cunt", "rape", "rapist", "porn", "incest",
-    "pedophil", "paedophil", "bestial", "molest",
+    "pedophil", "paedophil", "bestial", "molest", "crotch",
 )
 
 # Function words. Fine to guess, terrible as an answer - "however" is not a

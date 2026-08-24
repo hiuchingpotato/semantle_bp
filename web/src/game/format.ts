@@ -122,6 +122,29 @@ export function parsePuzzle(
 }
 
 /**
+ * Which words may be offered as a hint: one bit per vocab index, packed
+ * little-endian. A few kilobytes for the whole vocabulary.
+ */
+export function parseHintable(
+  buffer: ArrayBuffer,
+  wordCount: number,
+): Uint8Array {
+  const expected = Math.ceil(wordCount / 8);
+  if (buffer.byteLength !== expected) {
+    throw new PuzzleFormatError(
+      `hint pool should be ${expected} bytes, got ${buffer.byteLength}`,
+    );
+  }
+  return new Uint8Array(buffer);
+}
+
+/** True when the word at this vocab index may be offered as a hint. */
+export function isHintable(pool: Uint8Array, vocabIndex: number): boolean {
+  const byte = pool[vocabIndex >> 3];
+  return byte !== undefined && (byte & (1 << (vocabIndex & 7))) !== 0;
+}
+
+/**
  * Shared per-word layout: float16 pairs of [angle, radial multiplier], one pair
  * per vocab index. Same for every puzzle, so it is fetched once.
  */

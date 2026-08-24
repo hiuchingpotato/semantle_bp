@@ -28,6 +28,10 @@ unzip -o .tooling/glove.6B.zip glove.6B.300d.txt -d .tooling/
 # 3. English word list, for deciding what counts as guessable (4MB)
 curl -sL -o .tooling/words_alpha.txt \
   "https://raw.githubusercontent.com/dwyl/english-words/master/words_alpha.txt"
+
+# 4. Spoken-word frequency, for deciding what is common enough to hint (20MB)
+curl -sL -o .tooling/everyday_en.txt \
+  "https://raw.githubusercontent.com/hermitdave/FrequencyWords/master/content/2018/en/en_full.txt"
 ```
 
 Then:
@@ -113,6 +117,24 @@ place names and acronyms, while ordinary English like `quiche` (63,848th) and
 `cremate` (83,572nd) is still below the line. Cutting shallow enough to exclude
 the junk also excludes words people type. So the vocabulary is the most frequent
 30,000 tokens plus every deeper token a dictionary recognises — 105,187 words.
+
+**Guessing and hinting use different lists.** Guessing accepts anything real.
+A hint is the game speaking, so it has to be a word the player plausibly knows —
+offering `chippewa` for *kettle* is worse than offering nothing. Neither
+frequency nor a dictionary sorts this out alone: Wikipedia frequency, which
+orders the vocabulary, ranks American place names above household words, and the
+big word lists carry proper nouns as plain lowercase entries. Two signals
+together do work — a British word list that **preserves capitalisation**, so an
+entry that only ever appears capitalised is a proper noun, and spoken-word
+frequency, which knows nobody says `mesozoic`. 41,508 of the 105,187 words are
+hintable. Erring strict is deliberate: a word missing from the hint pool is
+still guessable, while one bad hint is visible and irritating.
+
+**The word list is British on purpose.** SCOWL `en_GB`, with Americanisms
+removed — `courgette` and `aubergine` are in it. It is committed at
+`tools/wordlists/british_en.txt` rather than fetched, so builds do not depend on
+a live generator, and **its capitalisation is load-bearing**: lowercasing that
+file would silently destroy proper-noun detection.
 
 **A word with no vector cannot be scored at all.** GloVe 6B is 2014 Wikipedia
 and US newswire, so a few real words are simply absent — `courgette` and

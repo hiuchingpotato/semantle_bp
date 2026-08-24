@@ -55,12 +55,16 @@ jobs:
           unzip -o glove.zip glove.6B.300d.txt -d .tooling/
           rm glove.zip
 
-      # Small (4MB) and public domain, so it is fetched rather than committed.
-      - name: Download the word list
+      # Public domain and MIT respectively, and too large to commit. The
+      # British word list that decides hint quality *is* committed, because
+      # builds must not depend on a live generator service.
+      - name: Download the word lists
         run: |
           mkdir -p .tooling
           curl -sSfL -o .tooling/words_alpha.txt \
             https://raw.githubusercontent.com/dwyl/english-words/master/words_alpha.txt
+          curl -sSfL -o .tooling/everyday_en.txt \
+            https://raw.githubusercontent.com/hermitdave/FrequencyWords/master/content/2018/en/en_full.txt
 
       - name: Build game data
         run: |

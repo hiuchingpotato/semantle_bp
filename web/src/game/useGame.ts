@@ -2,10 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { describeGuess } from "./bands";
 import { projectAll } from "./geometry";
-import { hintAvailability } from "./hints";
+import { chooseHintWord, hintAvailability } from "./hints";
 import {
   buildWordIndex,
   fetchAliases,
+  fetchHintable,
   fetchLayout,
   fetchManifest,
   fetchPuzzle,
@@ -104,6 +105,7 @@ export function useGame(now: Date = new Date()): GameState {
   const [showStats, setShowStats] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
   const [aliases, setAliases] = useState<Record<string, string>>({});
+  const [hintPool, setHintPool] = useState<Uint8Array | null>(null);
 
   const wordIndex = useMemo(() => buildWordIndex(vocabulary), [vocabulary]);
   const statsRef = useRef<StatsRecord>(EMPTY_STATS);
@@ -140,12 +142,13 @@ export function useGame(now: Date = new Date()): GameState {
         const dataVersion =
           loadedManifest.dataVersion ?? String(loadedManifest.wordCount);
 
-        const [loadedVocabulary, layout, loadedPuzzle, loadedAliases] =
+        const [loadedVocabulary, layout, loadedPuzzle, loadedAliases, pool] =
           await Promise.all([
             fetchVocabulary(dataVersion),
             fetchLayout(loadedManifest.wordCount, dataVersion),
             fetchPuzzle(resolved.active, loadedManifest),
             fetchAliases(dataVersion),
+            fetchHintable(loadedManifest.wordCount, dataVersion),
           ]);
         if (cancelled) return;
 
@@ -189,6 +192,7 @@ export function useGame(now: Date = new Date()): GameState {
         setSchedule(resolved);
         setVocabulary(loadedVocabulary);
         setAliases(loadedAliases);
+        setHintPool(pool);
         setPuzzle(loadedPuzzle);
         setPositions(projected);
         setGuesses(restored);
@@ -352,12 +356,12 @@ export function useGame(now: Date = new Date()): GameState {
 
   const takeHint = useCallback(() => {
     if (!puzzle || !hint.available) return;
-    const vocabIndex = puzzle.indexByRank[hint.targetRank];
-    if (vocabIndex === undefined) return;
+    const vocabIndex = chooseHintWord(puzzle, hint.targetRank, hintPool);
+    if (vocabIndex === null) return;
     const word = vocabulary[vocabIndex];
     if (word === undefined) return;
     play(word, vocabIndex, true);
-  }, [hint, play, puzzle, vocabulary]);
+  }, [hint, hintPool, play, puzzle, vocabulary]);
 
   return {
     status,
