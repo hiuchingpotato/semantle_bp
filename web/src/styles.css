@@ -1220,3 +1220,32 @@ button:disabled {
 .modal-about .modal-actions {
   margin-top: 1.25rem;
 }
+
+/* ------------------------------------- input and list as a single block */
+
+/*
+ * The guess input sits directly above the list, so the two should read as one
+ * unit. Three things were pushing them apart: the form's own bottom padding,
+ * the rail's flex gap between children, and the error line reserving a row of
+ * space even with nothing to say. All three are removed here, leaving the same
+ * 2px that separates one guess row from the next.
+ */
+
+.rail-scroll .guess-form {
+  padding: 0.75rem 0 0;
+}
+
+/* Flex gap cannot be subtracted, so it is cancelled and replaced. */
+.rail-scroll .guess-form + .guess-list {
+  margin-top: calc(2px - 0.75rem);
+}
+
+/*
+ * Collapse the notice when empty rather than holding its line open. That costs
+ * a small downward shift when a message does appear, which is a fair trade for
+ * closing a permanent band of empty space above the closest match.
+ */
+.notice:not(.is-visible) {
+  min-height: 0;
+  margin-top: 0;
+}
