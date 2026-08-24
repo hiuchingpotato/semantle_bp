@@ -134,12 +134,18 @@ export function useGame(now: Date = new Date()): GameState {
           readRequestedPuzzle(window.location.search),
         );
 
+        // Falls back to the vocabulary size, so an older build without a
+        // dataVersion still busts its own cache when the size changes - which is
+        // exactly the mismatch that broke.
+        const dataVersion =
+          loadedManifest.dataVersion ?? String(loadedManifest.wordCount);
+
         const [loadedVocabulary, layout, loadedPuzzle, loadedAliases] =
           await Promise.all([
-            fetchVocabulary(),
-            fetchLayout(loadedManifest.wordCount),
+            fetchVocabulary(dataVersion),
+            fetchLayout(loadedManifest.wordCount, dataVersion),
             fetchPuzzle(resolved.active, loadedManifest),
-            fetchAliases(),
+            fetchAliases(dataVersion),
           ]);
         if (cancelled) return;
 

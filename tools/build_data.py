@@ -371,6 +371,19 @@ def main() -> int:
         (OUT / "vocab.json").read_bytes()
     ).hexdigest()[:16]
 
+    # Cache key for every data file the client fetches.
+    #
+    # The data files are immutable for a given build and are fetched from cache
+    # without revalidating, so a rebuild has to change their URLs or a browser
+    # will pair a fresh manifest with stale binaries. Covers the vocabulary, the
+    # answers and the format version - everything that changes what those files
+    # contain or how big they are.
+    data_version = hashlib.sha256(
+        (OUT / "vocab.json").read_bytes()
+        + ANSWERS.read_bytes()
+        + str(FORMAT_VERSION).encode()
+    ).hexdigest()[:12]
+
     manifest = {
         "formatVersion": FORMAT_VERSION,
         "recordSize": RECORD_SIZE,
@@ -382,6 +395,7 @@ def main() -> int:
         "puzzleCount": len(secrets),
         "epoch": args.epoch,
         "vocabHash": vocab_hash,
+        "dataVersion": data_version,
         "source": {
             "vectors": "GloVe 6B 300d (Stanford NLP)",
             "licence": "Public Domain Dedication and Licence (PDDL) v1.0",

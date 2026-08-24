@@ -34,6 +34,11 @@ export type Manifest = {
   /** ISO date (YYYY-MM-DD) of puzzle #0. */
   epoch: string;
   vocabHash: string;
+  /**
+   * Cache key for every other data file. Absent in builds made before it
+   * existed, which the loader treats as an unversioned URL.
+   */
+  dataVersion?: string;
   source: { vectors: string; licence: string; url: string };
 };
 

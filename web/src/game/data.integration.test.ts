@@ -43,6 +43,21 @@ const vocabulary = JSON.parse(
 ) as string[];
 
 describe("built data", () => {
+  it("names a data version, so a rebuild cannot serve stale binaries", () => {
+    // Without this the data files are fetched from cache and never
+    // revalidated, so a rebuild that changes the vocabulary size pairs a fresh
+    // manifest with an old layout.bin and the parser refuses to start.
+    expect(typeof manifest.dataVersion).toBe("string");
+    expect(manifest.dataVersion!.length).toBeGreaterThanOrEqual(8);
+  });
+
+  it("has a layout sized to the vocabulary the manifest declares", () => {
+    // The exact mismatch that broke the live site: 60,000-word layout against a
+    // 105,187-word manifest.
+    const bytes = readFileSync(join(DATA, "layout.bin")).byteLength;
+    expect(bytes).toBe(manifest.wordCount * 4);
+  });
+
   it("has a manifest that matches the vocabulary", () => {
     expect(manifest.formatVersion).toBe(1);
     expect(vocabulary).toHaveLength(manifest.wordCount);

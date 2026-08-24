@@ -8,9 +8,18 @@ const DATA_ROOT = `${import.meta.env.BASE_URL}data`;
 
 /**
  * The vocabulary and the layout are the same for every puzzle, so they are
- * fetched with a long-lived cache and reused; only the puzzle table changes
- * day to day.
+ * fetched once and cached hard; only the puzzle table changes day to day.
+ *
+ * Every cached URL carries the manifest's dataVersion. Without it a rebuild
+ * that changes the vocabulary size leaves a browser holding a stale layout.bin
+ * while the manifest - which is never cached - says the new size, and the
+ * parser refuses the mismatch. Only the manifest needs to be fresh; it names
+ * the version of everything else.
  */
+
+function versioned(path: string, version: string): string {
+  return `${DATA_ROOT}/${path}?v=${encodeURIComponent(version)}`;
+}
 
 async function fetchBuffer(url: string): Promise<ArrayBuffer> {
   const response = await fetch(url, { cache: "force-cache" });
@@ -28,23 +37,38 @@ export async function fetchManifest(): Promise<Manifest> {
   return (await response.json()) as Manifest;
 }
 
-export async function fetchVocabulary(): Promise<string[]> {
-  const response = await fetch(`${DATA_ROOT}/vocab.json`, { cache: "force-cache" });
+export async function fetchVocabulary(version: string): Promise<string[]> {
+  const response = await fetch(versioned("vocab.json", version), {
+    cache: "force-cache",
+  });
   if (!response.ok) {
     throw new Error(`vocabulary returned ${response.status}`);
   }
   return (await response.json()) as string[];
 }
 
-export async function fetchLayout(wordCount: number): Promise<Layout> {
-  return parseLayout(await fetchBuffer(`${DATA_ROOT}/layout.bin`), wordCount);
+export async function fetchLayout(
+  wordCount: number,
+  version: string,
+): Promise<Layout> {
+  return parseLayout(
+    await fetchBuffer(versioned("layout.bin", version)),
+    wordCount,
+  );
 }
 
 export async function fetchPuzzle(
   puzzleNumber: number,
   manifest: Manifest,
 ): Promise<Puzzle> {
-  const buffer = await fetchBuffer(`${DATA_ROOT}/puzzles/p${puzzleNumber}.bin`);
+  const buffer = await fetchBuffer(
+    versioned(
+      `puzzles/p${puzzleNumber}.bin`,
+      // Same fallback as useGame: an older build without a dataVersion still
+      // busts its cache whenever the vocabulary size changes.
+      manifest.dataVersion ?? String(manifest.wordCount),
+    ),
+  );
   return parsePuzzle(buffer, puzzleNumber, manifest);
 }
 
@@ -54,8 +78,10 @@ export async function fetchPuzzle(
  * Built from the vocabulary and validated against the embedding; see
  * build_aliases in tools/build_data.py.
  */
-export async function fetchAliases(): Promise<Record<string, string>> {
-  const response = await fetch(`${DATA_ROOT}/aliases.json`, {
+export async function fetchAliases(
+  version: string,
+): Promise<Record<string, string>> {
+  const response = await fetch(versioned("aliases.json", version), {
     cache: "force-cache",
   });
   if (!response.ok) {
