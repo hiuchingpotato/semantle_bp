@@ -2,13 +2,13 @@
  * A character drifting across the background.
  *
  * Rare, slow and half-transparent: once every five minutes or so, one of the
- * six markers crosses the screen in a straight line, turning once as it goes.
+ * six markers crosses the screen in a straight line, turning as it goes.
  *
- * Screen space, like the shooting stars, and drawn well below full opacity and
- * noticeably larger than a played marker. All three of those matter - a drifting
- * character at marker size and marker opacity would look like a word doing
- * something, which is exactly the wrong impression.
+ * Screen space, like the shooting stars, and drawn behind the word field at
+ * half opacity - it is scenery passing beyond the words, not among them.
  */
+
+import { ANSWER_SCALE, MARKER_HEIGHT } from "./markers";
 
 export type Drifter = {
   bornAt: number;
@@ -33,11 +33,21 @@ export const MAX_GAP = 11 * 60_000;
 export const MIN_SPEED = 0.06;
 export const MAX_SPEED = 0.12;
 
-/** Comfortably bigger than a played marker, so the two never read alike. */
-export const MIN_SIZE = 96;
-export const MAX_SIZE = 150;
+/**
+ * Height in pixels: a tenth smaller than the answer marker.
+ *
+ * Derived rather than typed in, so it tracks MARKER_HEIGHT and ANSWER_SCALE if
+ * either is retuned.
+ */
+export const SIZE = MARKER_HEIGHT * ANSWER_SCALE * 0.9;
 
 export const OPACITY = 0.5;
+
+/**
+ * Turns across the journey. One full rotation looked sluggish at this size, so
+ * 1.2 - twenty per cent faster for the same crossing time.
+ */
+export const SPIN_TURNS = 1.2;
 
 /** Extra clearance beyond the edge, so a sprite never touches it. */
 export const EDGE_MARGIN = 8;
@@ -74,7 +84,7 @@ export function spawnDrifter(
   const direction = DIRECTIONS[
     Math.min(DIRECTIONS.length - 1, Math.floor(random() * DIRECTIONS.length))
   ]!;
-  const size = between(random, MIN_SIZE, MAX_SIZE);
+  const size = SIZE;
 
   const length = Math.hypot(direction[0], direction[1]) || 1;
   const dx = direction[0] / length;
@@ -128,8 +138,7 @@ export function drifterAt(drifter: Drifter, now: number) {
     progress,
     x: drifter.fromX + (drifter.toX - drifter.fromX) * progress,
     y: drifter.fromY + (drifter.toY - drifter.fromY) * progress,
-    // Exactly one turn across the whole journey.
-    rotation: progress * Math.PI * 2 * drifter.spin,
+    rotation: progress * Math.PI * 2 * SPIN_TURNS * drifter.spin,
   };
 }
 

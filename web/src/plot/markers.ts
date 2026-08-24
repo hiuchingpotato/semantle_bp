@@ -18,10 +18,16 @@ export type MarkerBand = {
   scale: number;
 };
 
+/**
+ * How much larger the answer is drawn than an ordinary marker. Declared before
+ * MARKER_BANDS because the table reads it - a const is not hoisted.
+ */
+export const ANSWER_SCALE = 1.6;
+
 export const MARKER_BANDS: readonly MarkerBand[] = [
   // The answer itself. Same character as the hottest band, drawn large - it is
   // the end of the game and should dominate the board.
-  { maxRank: 0, file: "4_hot_sauce.png", name: "answer", scale: 1.6 },
+  { maxRank: 0, file: "4_hot_sauce.png", name: "answer", scale: ANSWER_SCALE },
   { maxRank: 9, file: "4_hot_sauce.png", name: "hot sauce", scale: 1 },
   { maxRank: 49, file: "3_sausage.png", name: "hot dog", scale: 1 },
   { maxRank: 299, file: "6_drumstick.png", name: "drumstick", scale: 1 },
@@ -93,7 +99,14 @@ export class MarkerSet {
   private states = new Map<string, LoadState>();
   private onReady: (() => void) | null = null;
 
-  constructor(private readonly baseUrl: string) {}
+  private readonly baseUrl: string;
+
+  // A plain field, not a parameter property: those are not erasable syntax, so
+  // Node cannot run this module directly and the preview scripts could not
+  // import anything from it without a bundler.
+  constructor(baseUrl: string) {
+    this.baseUrl = baseUrl;
+  }
 
   /** Called when an image finishes loading, so the board can repaint. */
   setReadyCallback(callback: () => void): void {

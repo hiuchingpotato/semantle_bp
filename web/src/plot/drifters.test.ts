@@ -8,9 +8,12 @@ import {
   MIN_GAP,
   MIN_SPEED,
   OPACITY,
+  SIZE,
+  SPIN_TURNS,
   drifterAt,
   spawnDrifter,
 } from "./drifters";
+import { ANSWER_SCALE, MARKER_HEIGHT } from "./markers";
 
 const FILES = [
   "1_ice_cream.png",
@@ -161,9 +164,9 @@ describe("drifterAt", () => {
     expect(end.y).toBeCloseTo(drifter.toY, 6);
   });
 
-  it("turns exactly once across the journey", () => {
+  it("turns SPIN_TURNS times across the journey", () => {
     const end = drifterAt(drifter, 1000 + drifter.duration);
-    expect(Math.abs(end.rotation)).toBeCloseTo(Math.PI * 2, 6);
+    expect(Math.abs(end.rotation)).toBeCloseTo(Math.PI * 2 * SPIN_TURNS, 6);
   });
 
   it("moves at a constant rate", () => {
@@ -226,5 +229,24 @@ describe("Drifters", () => {
 describe("appearance", () => {
   it("is half transparent", () => {
     expect(OPACITY).toBe(0.5);
+  });
+
+  it("is a tenth smaller than the answer marker", () => {
+    const answerHeight = MARKER_HEIGHT * ANSWER_SCALE;
+    expect(SIZE).toBeCloseTo(answerHeight * 0.9, 6);
+    expect(SIZE).toBeLessThan(answerHeight);
+  });
+
+  it("is one size, not a range", () => {
+    const random = lcg(5);
+    const sizes = new Set<number>();
+    for (let i = 0; i < 20; i++) {
+      sizes.add(spawnDrifter(random, FILES, W, H, 0).size);
+    }
+    expect(sizes).toEqual(new Set([SIZE]));
+  });
+
+  it("turns faster than one rotation per crossing", () => {
+    expect(SPIN_TURNS).toBeCloseTo(1.2, 6);
   });
 });

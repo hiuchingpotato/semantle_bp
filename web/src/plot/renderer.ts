@@ -201,6 +201,19 @@ export class OrbitRenderer {
     ctx.setTransform(viewport.dpr, 0, 0, viewport.dpr, 0, 0);
     ctx.clearRect(0, 0, viewport.width, viewport.height);
 
+    // Drawn first, so the word field composites over it: a drifting character
+    // passes *behind* the words rather than across them. The dust layer is
+    // transparent wherever there is no word, so this still shows through.
+    if (input.animate) {
+      this.drifters.update(
+        input.timeMs,
+        viewport.width,
+        viewport.height,
+        this.markers.readyFiles,
+      );
+      this.drifters.draw(ctx, input.timeMs, (file) => this.markers.byFile(file));
+    }
+
     // The dust layer works in device pixels, so it is written with the
     // transform reset and the context restored afterwards.
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -220,16 +233,8 @@ export class OrbitRenderer {
 
     ctx.setTransform(viewport.dpr, 0, 0, viewport.dpr, 0, 0);
 
-    // Behind everything the player put there, in front of the word field.
+    // Shooting stars sit above the word field but below anything played.
     if (input.animate) {
-      this.drifters.update(
-        input.timeMs,
-        viewport.width,
-        viewport.height,
-        this.markers.readyFiles,
-      );
-      this.drifters.draw(ctx, input.timeMs, (file) => this.markers.byFile(file));
-
       this.stars.update(input.timeMs, viewport.width, viewport.height);
       this.stars.draw(ctx, input.timeMs);
     }
