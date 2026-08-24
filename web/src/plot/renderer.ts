@@ -324,7 +324,6 @@ export class OrbitRenderer {
         marker,
         band,
         isFocus,
-        revealed: guess.revealed,
         scale: this.markers.scaleForRank(guess.rank),
         isAnswer: guess.rank === 0,
       });
@@ -373,12 +372,11 @@ export class OrbitRenderer {
       marker: HTMLImageElement | null;
       band: { tone: string };
       isFocus: boolean;
-      revealed: boolean;
       scale: number;
       isAnswer: boolean;
     },
   ): number {
-    const { px, py, marker, band, isFocus, revealed, scale, isAnswer } = options;
+    const { px, py, marker, band, isFocus, scale, isAnswer } = options;
 
     if (!marker) {
       // Image not loaded, or missing. Fall back to the dot rather than showing
@@ -429,8 +427,9 @@ export class OrbitRenderer {
       ctx.shadowColor = toneColour(band.tone, 0.85);
       ctx.shadowBlur = 12;
     }
-    // Revealed words are dimmed, so a hint is visibly not your own find.
-    ctx.globalAlpha = revealed ? 0.62 : 1;
+    // Always solid. A played word is a fact about the board, and half-drawn
+    // artwork reads as a rendering fault rather than as a distinction. Partial
+    // opacity belongs to the drifting background character and nothing else.
     ctx.drawImage(marker, px - width / 2, top, width, height);
     ctx.restore();
 
