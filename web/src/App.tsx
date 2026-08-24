@@ -91,10 +91,8 @@ export default function App() {
             />
           )}
 
-          <GuessList guesses={game.guesses} focus={game.focus} />
-
-          {/* Directly under the words played, so the input travels with the
-              list rather than being pinned away from it. */}
+          {/* Above the list, so the closest match sits directly beneath the
+              input rather than at the far end of a long column. */}
           {!game.solved && (
             <GuessForm
               disabled={false}
@@ -104,6 +102,8 @@ export default function App() {
               onHint={game.takeHint}
             />
           )}
+
+          <GuessList guesses={game.guesses} focus={game.focus} />
 
           <StatsButton stats={game.stats} onOpen={game.openStats} />
 
