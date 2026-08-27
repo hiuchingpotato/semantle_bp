@@ -8,7 +8,7 @@
  * half opacity - it is scenery passing beyond the words, not among them.
  */
 
-import { ANSWER_SCALE, MARKER_HEIGHT } from "./markers";
+import { ANSWER_SCALE, MARKER_HEIGHT, MARKER_OPACITY } from "./markers";
 
 export type Drifter = {
   bornAt: number;
@@ -58,7 +58,14 @@ export const MAX_SPEED = 0.12;
  */
 export const SIZE = MARKER_HEIGHT * ANSWER_SCALE * 0.9;
 
-export const OPACITY = 0.5;
+/**
+ * How solid a drifting character is, relative to a played marker.
+ *
+ * Derived rather than typed in, so the two cannot drift apart if marker opacity
+ * is ever changed. Faint enough to stay background, solid enough to be seen -
+ * at half it was barely there.
+ */
+export const OPACITY = MARKER_OPACITY * 0.8;
 
 /**
  * Turns across the journey, for the slushie. One full rotation looked sluggish

@@ -63,6 +63,13 @@ export function markerBandForRank(rank: number): MarkerBand {
 export const MARKER_HEIGHT = 41;
 export const MARKER_FOCUS_HEIGHT = 49;
 
+/**
+ * Opacity a played marker is drawn at. Solid: a word on the board is a fact,
+ * and half-drawn artwork reads as a rendering fault. Named so the drifting
+ * background characters can be set relative to it.
+ */
+export const MARKER_OPACITY = 1;
+
 /** Gold halo drawn behind the answer. Matches --tone-solved in styles.css. */
 export const ANSWER_GLOW_COLOUR = "#ffd684";
 

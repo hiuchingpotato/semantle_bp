@@ -22,7 +22,7 @@ import {
   spinTurnsFor,
   zoomFade,
 } from "./drifters";
-import { ANSWER_SCALE, MARKER_HEIGHT } from "./markers";
+import { ANSWER_SCALE, MARKER_HEIGHT, MARKER_OPACITY } from "./markers";
 
 const FILES = [
   "1_ice_cream.png",
@@ -335,8 +335,10 @@ describe("zoomFade", () => {
 });
 
 describe("appearance", () => {
-  it("is half transparent", () => {
-    expect(OPACITY).toBe(0.5);
+  it("is a fifth less solid than a played marker", () => {
+    expect(OPACITY).toBeCloseTo(MARKER_OPACITY * 0.8, 6);
+    // Still clearly behind the game rather than part of it.
+    expect(OPACITY).toBeLessThan(MARKER_OPACITY);
   });
 
   it("is a tenth smaller than the answer marker", () => {
