@@ -357,15 +357,18 @@ describe("appearance", () => {
   });
 
   it("turns faster than one rotation per crossing", () => {
-    expect(SPIN_TURNS).toBeCloseTo(1.2, 6);
+    expect(SPIN_TURNS).toBeCloseTo(1.44, 6);
   });
 
   it("gives every character its own spin speed", () => {
     // The chain, as specified: each relative to the one before it.
-    expect(spinTurnsFor("5_slushie.png")).toBeCloseTo(1.2, 6);
-    expect(spinTurnsFor("1_ice_cream.png")).toBeCloseTo(1.2 * 1.2, 6);
-    expect(spinTurnsFor("2_gherkin.png")).toBeCloseTo(1.2 * 1.2 * 1.1, 6);
-    expect(spinTurnsFor("3_sausage.png")).toBeCloseTo(1.2 * 1.2 * 1.1 * 1.3, 6);
+    expect(spinTurnsFor("5_slushie.png")).toBeCloseTo(SPIN_TURNS, 6);
+    expect(spinTurnsFor("1_ice_cream.png")).toBeCloseTo(SPIN_TURNS * 1.2, 6);
+    expect(spinTurnsFor("2_gherkin.png")).toBeCloseTo(SPIN_TURNS * 1.2 * 1.1, 6);
+    expect(spinTurnsFor("3_sausage.png")).toBeCloseTo(
+      SPIN_TURNS * 1.2 * 1.1 * 1.3,
+      6,
+    );
     // The drumstick matches the hot dog.
     expect(spinTurnsFor("6_drumstick.png")).toBeCloseTo(
       spinTurnsFor("3_sausage.png"),

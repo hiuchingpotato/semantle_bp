@@ -62,18 +62,20 @@ export const SIZE = MARKER_HEIGHT * ANSWER_SCALE * 0.9;
  * How solid a drifting character is, relative to a played marker.
  *
  * Derived rather than typed in, so the two cannot drift apart if marker opacity
- * is ever changed. Faint enough to stay background, solid enough to be seen -
- * at half it was barely there.
+ * is ever changed. A tenth softer than a played marker: enough to sit behind
+ * the game without being hard to see. At half it was barely there.
  */
-export const OPACITY = MARKER_OPACITY * 0.8;
+export const OPACITY = MARKER_OPACITY * 0.9;
 
 /**
  * Turns across the journey, for the slushie. One full rotation looked sluggish
- * at this size, so 1.2 - twenty per cent faster for the same crossing time.
+ * at this size, and 1.2 was still slow, so 1.44 - each step twenty per cent up
+ * on the last, for the same crossing time. Raising this speeds every character
+ * up together and keeps the ratios between them.
  *
  * Every other character is a multiple of this; see SPIN_MULTIPLIER.
  */
-export const SPIN_TURNS = 1.2;
+export const SPIN_TURNS = 1.44;
 
 /**
  * How fast each character turns, relative to the slushie.
