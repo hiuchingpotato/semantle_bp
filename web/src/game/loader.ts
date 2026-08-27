@@ -108,6 +108,33 @@ export async function fetchAliases(
   return (await response.json()) as Record<string, string>;
 }
 
+/**
+ * Singular -> plural. The client reads it both ways.
+ *
+ * Shipped as pairs rather than a redirect to one canonical form, because unlike
+ * a spelling variant both forms are real words with their own ranks, and which
+ * one is closer depends on the answer.
+ */
+export async function fetchInflections(
+  version: string,
+): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  try {
+    const response = await fetch(versioned("forms.json", version), {
+      cache: "force-cache",
+    });
+    if (!response.ok) return map;
+    const pairs = (await response.json()) as Record<string, string>;
+    for (const [singular, plural] of Object.entries(pairs)) {
+      map.set(singular, plural);
+      map.set(plural, singular);
+    }
+  } catch {
+    // Playable without it; guesses just are not forgiven their plurals.
+  }
+  return map;
+}
+
 /** Word -> vocab index, for turning what someone typed into a lookup. */
 export function buildWordIndex(vocabulary: string[]): Map<string, number> {
   const index = new Map<string, number>();
@@ -163,4 +190,44 @@ export function resolveGuess(
   const index = wordIndex.get(typed);
   if (index === undefined) return null;
   return { vocabIndex: index, typed, aliased: false };
+}
+
+/**
+ * Swap a guess for its singular or plural if that form scores better.
+ *
+ * A player has no way to know whether today's answer is "dragon" or "dragons",
+ * and the two are not near each other: across real puzzles they sit thousands
+ * of ranks apart, and baby/babies over fifty thousand. Making someone guess
+ * which form was chosen is a coin toss, not a clue.
+ *
+ * So both count, and the closer one is what gets played - which also means that
+ * typing the singular when the answer is the plural simply wins.
+ *
+ * The word actually shown is the form that scored, not the one typed. Here the
+ * two are genuinely different words, so displaying "dragon" against the rank of
+ * "dragons" would be a lie about which word that rank belongs to.
+ */
+export function preferBetterForm(
+  vocabIndex: number,
+  vocabulary: string[],
+  wordIndex: Map<string, number>,
+  inflections: Map<string, string>,
+  rankByVocabIndex: Int32Array,
+): number {
+  const word = vocabulary[vocabIndex];
+  if (word === undefined) return vocabIndex;
+
+  const other = inflections.get(word);
+  if (other === undefined) return vocabIndex;
+
+  const otherIndex = wordIndex.get(other);
+  if (otherIndex === undefined) return vocabIndex;
+
+  const here = rankByVocabIndex[vocabIndex] ?? -1;
+  const there = rankByVocabIndex[otherIndex] ?? -1;
+  if (here < 0) return otherIndex;
+  if (there < 0) return vocabIndex;
+
+  // Lower rank is closer to the answer.
+  return there < here ? otherIndex : vocabIndex;
 }

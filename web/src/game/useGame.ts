@@ -7,10 +7,12 @@ import {
   buildWordIndex,
   fetchAliases,
   fetchHintable,
+  fetchInflections,
   fetchLayout,
   fetchManifest,
   fetchPuzzle,
   fetchVocabulary,
+  preferBetterForm,
   resolveGuess,
 } from "./loader";
 import { puzzleNumberFor, readRequestedPuzzle, resolveSchedule } from "./schedule";
@@ -113,6 +115,7 @@ export function useGame(now: Date = new Date()): GameState {
   const [gaveUp, setGaveUp] = useState(false);
   const [aliases, setAliases] = useState<Record<string, string>>({});
   const [hintPool, setHintPool] = useState<Uint8Array | null>(null);
+  const [inflections, setInflections] = useState<Map<string, string>>(new Map());
 
   const wordIndex = useMemo(() => buildWordIndex(vocabulary), [vocabulary]);
   const statsRef = useRef<StatsRecord>(EMPTY_STATS);
@@ -149,13 +152,21 @@ export function useGame(now: Date = new Date()): GameState {
         const dataVersion =
           loadedManifest.dataVersion ?? String(loadedManifest.wordCount);
 
-        const [loadedVocabulary, layout, loadedPuzzle, loadedAliases, pool] =
+        const [
+          loadedVocabulary,
+          layout,
+          loadedPuzzle,
+          loadedAliases,
+          pool,
+          loadedForms,
+        ] =
           await Promise.all([
             fetchVocabulary(dataVersion),
             fetchLayout(loadedManifest.wordCount, dataVersion),
             fetchPuzzle(resolved.active, loadedManifest),
             fetchAliases(dataVersion),
             fetchHintable(loadedManifest.wordCount, dataVersion),
+            fetchInflections(dataVersion),
           ]);
         if (cancelled) return;
 
@@ -200,6 +211,7 @@ export function useGame(now: Date = new Date()): GameState {
         setVocabulary(loadedVocabulary);
         setAliases(loadedAliases);
         setHintPool(pool);
+        setInflections(loadedForms);
         setPuzzle(loadedPuzzle);
         setPositions(projected);
         setGuesses(restored);
@@ -352,10 +364,24 @@ export function useGame(now: Date = new Date()): GameState {
         setAnnouncement(`${typed} is not in the word list.`);
         return;
       }
-      // The typed spelling is what gets shown; the resolved entry is what scores.
-      play(resolved.typed, resolved.vocabIndex, false);
+      // Singular and plural both count; the closer one is what gets played.
+      const vocabIndex = puzzle
+        ? preferBetterForm(
+            resolved.vocabIndex,
+            vocabulary,
+            wordIndex,
+            inflections,
+            puzzle.rankByVocabIndex,
+          )
+        : resolved.vocabIndex;
+
+      // The word shown is the form that scored. Where that differs from what
+      // was typed the two are genuinely different words, so showing the typed
+      // one against the other's rank would misattribute it.
+      const word = vocabulary[vocabIndex] ?? resolved.typed;
+      play(word, vocabIndex, false);
     },
-    [aliases, play, wordIndex],
+    [aliases, inflections, play, puzzle, vocabulary, wordIndex],
   );
 
   /**

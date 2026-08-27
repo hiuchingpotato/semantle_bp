@@ -175,6 +175,43 @@ describe("built data", () => {
     expect(manifest.wordCount).toBeGreaterThan(100_000);
   });
 
+  it("pairs singulars with plurals", () => {
+    const pairs = JSON.parse(
+      readFileSync(join(DATA, "forms.json"), "utf8"),
+    ) as Record<string, string>;
+    expect(Object.keys(pairs).length).toBeGreaterThan(5_000);
+
+    const known = new Set(vocabulary);
+    for (const [singular, plural] of Object.entries(pairs)) {
+      expect(known.has(singular), `missing: ${singular}`).toBe(true);
+      expect(known.has(plural), `missing: ${plural}`).toBe(true);
+      expect(singular).not.toBe(plural);
+    }
+
+    // The pairs a player will actually run into.
+    for (const [a, b] of [
+      ["dragon", "dragons"],
+      ["wolf", "wolves"],
+      ["baby", "babies"],
+      ["mouse", "mice"],
+      ["child", "children"],
+      ["box", "boxes"],
+    ]) {
+      expect(pairs[a!], `${a} should pair with ${b}`).toBe(b);
+    }
+
+    // Rule misfires the embedding is there to catch: -s on a word that has no
+    // plural.
+    for (const wrong of ["when", "and", "here", "always"]) {
+      expect(pairs[wrong], `${wrong} should not pair`).toBeUndefined();
+    }
+
+    // The -f/-ves rule proposes "serves" for "serf". That is rejected on
+    // similarity, and the rules then fall through to the right answer rather
+    // than giving up on the word.
+    expect(pairs["serf"]).toBe("serfs");
+  });
+
   it("keeps the vocabulary to plain lowercase words", () => {
     for (const word of vocabulary) {
       expect(word).toMatch(/^[a-z]{3,}$/);

@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { buildWordIndex, normaliseGuess, resolveGuess } from "./loader";
+import {
+  buildWordIndex,
+  normaliseGuess,
+  preferBetterForm,
+  resolveGuess,
+} from "./loader";
 
 const VOCAB = ["color", "colour", "centre", "center", "rabbit", "flavor"];
 const INDEX = buildWordIndex(VOCAB);
@@ -75,5 +80,55 @@ describe("resolveGuess", () => {
       INDEX.get("colour"),
     );
     expect(resolveGuess("rabbit", INDEX, {})?.vocabIndex).toBe(4);
+  });
+});
+
+
+describe("preferBetterForm", () => {
+  const VOCAB = ["dragon", "dragons", "kettle", "rabbit"];
+  const INDEX = buildWordIndex(VOCAB);
+  // Read both ways, as fetchInflections builds it.
+  const FORMS = new Map([
+    ["dragon", "dragons"],
+    ["dragons", "dragon"],
+  ]);
+
+  /** rankByVocabIndex: position in the puzzle, -1 when absent. */
+  const ranks = (...values: number[]) => Int32Array.from(values);
+
+  it("swaps the singular for the plural when the plural is closer", () => {
+    // dragons at rank 0 is the answer; dragon is 2,824 away.
+    const best = preferBetterForm(0, VOCAB, INDEX, FORMS, ranks(2824, 0, 500, 900));
+    expect(VOCAB[best]).toBe("dragons");
+  });
+
+  it("swaps the plural for the singular when the singular is closer", () => {
+    const best = preferBetterForm(1, VOCAB, INDEX, FORMS, ranks(0, 2824, 500, 900));
+    expect(VOCAB[best]).toBe("dragon");
+  });
+
+  it("keeps what was typed when it is already the closer form", () => {
+    const best = preferBetterForm(0, VOCAB, INDEX, FORMS, ranks(0, 2824, 500, 900));
+    expect(VOCAB[best]).toBe("dragon");
+  });
+
+  it("leaves a word with no counterpart alone", () => {
+    const best = preferBetterForm(2, VOCAB, INDEX, FORMS, ranks(10, 20, 30, 40));
+    expect(VOCAB[best]).toBe("kettle");
+  });
+
+  it("does nothing without a pair table", () => {
+    const best = preferBetterForm(0, VOCAB, INDEX, new Map(), ranks(9, 0, 1, 2));
+    expect(VOCAB[best]).toBe("dragon");
+  });
+
+  it("falls back when a form is missing from this puzzle", () => {
+    // -1 means the word is not ranked here at all.
+    expect(VOCAB[preferBetterForm(0, VOCAB, INDEX, FORMS, ranks(-1, 5, 1, 2))]).toBe(
+      "dragons",
+    );
+    expect(VOCAB[preferBetterForm(0, VOCAB, INDEX, FORMS, ranks(5, -1, 1, 2))]).toBe(
+      "dragon",
+    );
   });
 });

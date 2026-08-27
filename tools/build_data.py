@@ -32,6 +32,7 @@ from pathlib import Path
 
 import numpy as np
 
+import inflections
 import spelling
 from wordfilters import BLOCKED_EXACT, BLOCKED_SUBSTRINGS
 
@@ -420,6 +421,46 @@ def build_aliases(words: list[str], unit: np.ndarray) -> dict[str, str]:
     return dict(sorted(aliases.items()))
 
 
+# Singular and plural of one word sit close together but nowhere near as close
+# as two spellings of it: dragon/dragons is 0.52, penguin/penguins 0.37. The cut
+# is set below the weakest real pair and far above the misfires, which all score
+# negative - "when"/"whens" is -0.27.
+INFLECTION_MIN_SIMILARITY = 0.30
+
+
+def build_inflections(words: list[str], unit: np.ndarray) -> dict[str, str]:
+    """Pair each singular with its plural.
+
+    Unlike the spelling aliases, this is not a redirect to a canonical form.
+    Both forms are real words with their own vectors and their own ranks, and
+    which is closer depends on the answer, so the pairing is shipped and the
+    client picks the better one per puzzle.
+
+    Rules propose, the embedding decides - the same arrangement that keeps the
+    spelling rules honest.
+    """
+    rank = {word: index for index, word in enumerate(words)}
+    pairs: dict[str, str] = {}
+    rejected = 0
+
+    for word in words:
+        if word in pairs:
+            continue
+        for candidate in inflections.plural_candidates(word):
+            target = rank.get(candidate)
+            if target is None or candidate == word or candidate in pairs:
+                continue
+            similarity = float(unit[rank[word]] @ unit[target])
+            if similarity < INFLECTION_MIN_SIMILARITY:
+                rejected += 1
+                continue
+            pairs[word] = candidate
+            break
+
+    log(f"  {len(pairs)} singular/plural pairs ({rejected} rejected by the embedding)")
+    return dict(sorted(pairs.items()))
+
+
 def write_puzzle(path: Path, secret_index: int, order: np.ndarray, sims: np.ndarray) -> None:
     header = struct.pack(
         "<4sHHII", MAGIC, FORMAT_VERSION, RECORD_SIZE, len(order), secret_index
@@ -483,6 +524,9 @@ def main() -> int:
     log("building spelling aliases")
     aliases = build_aliases(words, unit)
 
+    log("pairing singulars with plurals")
+    inflection_pairs = build_inflections(words, unit)
+
     log("choosing answers")
     secrets = choose_secrets(words, args.puzzles, args.seed)
 
@@ -507,6 +551,9 @@ def main() -> int:
     (OUT / "layout.bin").write_bytes(layout.tobytes())
     (OUT / "aliases.json").write_text(json.dumps(aliases, separators=(",", ":")))
     (OUT / "hintable.bin").write_bytes(pack_bits(hintable))
+    (OUT / "forms.json").write_text(
+        json.dumps(inflection_pairs, separators=(",", ":"))
+    )
 
     vocab_hash = hashlib.sha256(
         (OUT / "vocab.json").read_bytes()
@@ -532,6 +579,7 @@ def main() -> int:
         "wordCount": len(words),
         "aliasCount": len(aliases),
         "hintableCount": int(hintable.sum()),
+        "inflectionCount": len(inflection_pairs),
         # float16 pairs in layout.bin: angle, then radial multiplier.
         "layoutStride": 2,
         "puzzleCount": len(secrets),
