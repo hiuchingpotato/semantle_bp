@@ -313,10 +313,11 @@ describe("appearance", () => {
     expect(OPACITY).toBeLessThan(MARKER_OPACITY);
   });
 
-  it("is a tenth smaller than the answer marker", () => {
-    const answerHeight = MARKER_HEIGHT * ANSWER_SCALE;
-    expect(SIZE).toBeCloseTo(answerHeight * 0.9, 6);
-    expect(SIZE).toBeLessThan(answerHeight);
+  it("is about the size of an ordinary played marker", () => {
+    expect(SIZE).toBe(40);
+    // Comfortably under the answer marker, which should stay the largest
+    // character on the board.
+    expect(SIZE).toBeLessThan(MARKER_HEIGHT * ANSWER_SCALE);
   });
 
   it("is one size, not a range", () => {

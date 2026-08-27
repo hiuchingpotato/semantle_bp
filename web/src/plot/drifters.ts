@@ -8,7 +8,7 @@
  * half opacity - it is scenery passing beyond the words, not among them.
  */
 
-import { ANSWER_SCALE, MARKER_HEIGHT, MARKER_OPACITY } from "./markers";
+import { MARKER_OPACITY } from "./markers";
 
 export type Drifter = {
   bornAt: number;
@@ -51,12 +51,14 @@ export const MIN_SPEED = 0.06;
 export const MAX_SPEED = 0.12;
 
 /**
- * Height in pixels: a tenth smaller than the answer marker.
+ * Height in pixels.
  *
- * Derived rather than typed in, so it tracks MARKER_HEIGHT and ANSWER_SCALE if
- * either is retuned.
+ * An absolute figure rather than a fraction of the marker size, because it was
+ * chosen by eye against the screen. It happens to sit just under MARKER_HEIGHT,
+ * so a drifting character reads at about the size of an ordinary played word
+ * rather than the larger answer.
  */
-export const SIZE = MARKER_HEIGHT * ANSWER_SCALE * 0.9;
+export const SIZE = 40;
 
 /**
  * How solid a drifting character is, relative to a played marker.
