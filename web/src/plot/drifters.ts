@@ -44,10 +44,51 @@ export const SIZE = MARKER_HEIGHT * ANSWER_SCALE * 0.9;
 export const OPACITY = 0.5;
 
 /**
- * Turns across the journey. One full rotation looked sluggish at this size, so
- * 1.2 - twenty per cent faster for the same crossing time.
+ * Turns across the journey, for the slushie. One full rotation looked sluggish
+ * at this size, so 1.2 - twenty per cent faster for the same crossing time.
+ *
+ * Every other character is a multiple of this; see SPIN_MULTIPLIER.
  */
 export const SPIN_TURNS = 1.2;
+
+/**
+ * How fast each character turns, relative to the slushie.
+ *
+ * Set by eye rather than derived, each one relative to the last:
+ *
+ *   slushie    baseline
+ *   ice cream  20% quicker than the baseline          1.2
+ *   gherkin    10% quicker than the ice cream         1.2  x 1.1  = 1.32
+ *   hot dog    30% quicker than the gherkin           1.32 x 1.3  = 1.716
+ *   drumstick  same as the hot dog                              = 1.716
+ *   hot sauce  10% quicker than the fastest of those  1.716 x 1.1 = 1.8876
+ *
+ * Written out rather than chained in code: the chain is the specification, and
+ * a reader should be able to check the arithmetic without running it.
+ */
+export const SPIN_MULTIPLIER: Readonly<Record<string, number>> = {
+  "5_slushie.png": 1,
+  "1_ice_cream.png": 1.2,
+  "2_gherkin.png": 1.32,
+  "3_sausage.png": 1.716,
+  "6_drumstick.png": 1.716,
+  "4_hot_sauce.png": 1.8876,
+};
+
+/** Turns for one character. Unknown artwork falls back to the baseline. */
+export function spinTurnsFor(file: string): number {
+  return SPIN_TURNS * (SPIN_MULTIPLIER[file] ?? 1);
+}
+
+/**
+ * The character whose dimensions every drifter is drawn at.
+ *
+ * All six are currently 160px tall with no padding, so they already match. This
+ * pins that: the drawn box comes from one reference rather than from whichever
+ * image happens to be passing, so replacing artwork later cannot quietly change
+ * how large a drifter appears.
+ */
+export const SIZE_REFERENCE = "5_slushie.png";
 
 /**
  * Zoom levels, in the units the on-screen readout uses.
@@ -156,7 +197,8 @@ export function drifterAt(drifter: Drifter, now: number) {
     progress,
     x: drifter.fromX + (drifter.toX - drifter.fromX) * progress,
     y: drifter.fromY + (drifter.toY - drifter.fromY) * progress,
-    rotation: progress * Math.PI * 2 * SPIN_TURNS * drifter.spin,
+    rotation:
+      progress * Math.PI * 2 * spinTurnsFor(drifter.file) * drifter.spin,
   };
 }
 
@@ -218,8 +260,12 @@ export class Drifters {
     const { x, y, rotation, progress } = drifterAt(drifter, now);
     if (progress < 0 || progress > 1) return;
 
+    // Sized from the reference character, not from this one, so every drifter
+    // occupies the same box. Falls back to the image itself if the reference
+    // has not loaded.
+    const reference = resolve(SIZE_REFERENCE) ?? image;
     const height = drifter.size;
-    const width = (image.naturalWidth / image.naturalHeight) * height;
+    const width = (reference.naturalWidth / reference.naturalHeight) * height;
 
     ctx.save();
     ctx.globalAlpha = alpha;

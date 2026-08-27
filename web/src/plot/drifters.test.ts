@@ -9,11 +9,13 @@ import {
   MIN_SPEED,
   OPACITY,
   SIZE,
+  SPIN_MULTIPLIER,
   SPIN_TURNS,
   ZOOM_FADE_END,
   ZOOM_FADE_START,
   drifterAt,
   spawnDrifter,
+  spinTurnsFor,
   zoomFade,
 } from "./drifters";
 import { ANSWER_SCALE, MARKER_HEIGHT } from "./markers";
@@ -167,9 +169,10 @@ describe("drifterAt", () => {
     expect(end.y).toBeCloseTo(drifter.toY, 6);
   });
 
-  it("turns SPIN_TURNS times across the journey", () => {
+  it("turns its own character's number of times across the journey", () => {
     const end = drifterAt(drifter, 1000 + drifter.duration);
-    expect(Math.abs(end.rotation)).toBeCloseTo(Math.PI * 2 * SPIN_TURNS, 6);
+    const expected = Math.PI * 2 * spinTurnsFor(drifter.file);
+    expect(Math.abs(end.rotation)).toBeCloseTo(expected, 6);
   });
 
   it("moves at a constant rate", () => {
@@ -286,5 +289,36 @@ describe("appearance", () => {
 
   it("turns faster than one rotation per crossing", () => {
     expect(SPIN_TURNS).toBeCloseTo(1.2, 6);
+  });
+
+  it("gives every character its own spin speed", () => {
+    // The chain, as specified: each relative to the one before it.
+    expect(spinTurnsFor("5_slushie.png")).toBeCloseTo(1.2, 6);
+    expect(spinTurnsFor("1_ice_cream.png")).toBeCloseTo(1.2 * 1.2, 6);
+    expect(spinTurnsFor("2_gherkin.png")).toBeCloseTo(1.2 * 1.2 * 1.1, 6);
+    expect(spinTurnsFor("3_sausage.png")).toBeCloseTo(1.2 * 1.2 * 1.1 * 1.3, 6);
+    // The drumstick matches the hot dog.
+    expect(spinTurnsFor("6_drumstick.png")).toBeCloseTo(
+      spinTurnsFor("3_sausage.png"),
+      6,
+    );
+    // The hot sauce is 10% beyond the fastest of the rest.
+    expect(spinTurnsFor("4_hot_sauce.png")).toBeCloseTo(
+      spinTurnsFor("3_sausage.png") * 1.1,
+      6,
+    );
+  });
+
+  it("makes the hot sauce the fastest and the slushie the slowest", () => {
+    const speeds = Object.keys(SPIN_MULTIPLIER).map(spinTurnsFor);
+    expect(spinTurnsFor("4_hot_sauce.png")).toBe(Math.max(...speeds));
+    expect(spinTurnsFor("5_slushie.png")).toBe(Math.min(...speeds));
+  });
+
+  it("covers every character, and falls back for unknown artwork", () => {
+    for (const file of FILES) {
+      expect(SPIN_MULTIPLIER[file], `no spin set for ${file}`).toBeDefined();
+    }
+    expect(spinTurnsFor("not_a_marker.png")).toBe(SPIN_TURNS);
   });
 });
