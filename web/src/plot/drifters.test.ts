@@ -8,12 +8,16 @@ import {
   MIN_GAP,
   MIN_SPEED,
   OPACITY,
+  APPEARANCE_WEIGHT,
+  FIRST_GAP_MAX,
+  MAX_CONCURRENT,
   SIZE,
   SPIN_MULTIPLIER,
   SPIN_TURNS,
   ZOOM_FADE_END,
   ZOOM_FADE_START,
   drifterAt,
+  pickWeighted,
   spawnDrifter,
   spinTurnsFor,
   zoomFade,
@@ -187,48 +191,112 @@ describe("Drifters", () => {
   it("does not open with one", () => {
     const drifters = new Drifters(sequence([0]));
     drifters.update(0, W, H, FILES);
-    expect(drifters.current).toBeNull();
+    expect(drifters.current).toHaveLength(0);
   });
 
-  it("waits at least five minutes", () => {
+  it("shows the first one early, so a short game still sees it", () => {
+    // The game lasts about five minutes and can end in two, so the first
+    // arrival has to be seconds away, not minutes.
     const drifters = new Drifters(sequence([0]));
     drifters.update(0, W, H, FILES);
-    drifters.update(MIN_GAP - 1, W, H, FILES);
-    expect(drifters.current).toBeNull();
-    drifters.update(MAX_GAP + 1, W, H, FILES);
-    expect(drifters.current).not.toBeNull();
+    drifters.update(FIRST_GAP_MAX + 1, W, H, FILES);
+    expect(drifters.current.length).toBeGreaterThan(0);
+    expect(FIRST_GAP_MAX).toBeLessThan(15_000);
   });
 
-  it("shows one at a time", () => {
+  it("switches to the recurring gap after the first arrival", () => {
+    // The two ranges overlap on purpose - first 4-12s, recurring 10-30s - so
+    // this checks the behaviour, not that one bound exceeds the other.
     const drifters = new Drifters(sequence([0]));
+    drifters.update(0, W, H, FILES);
+    drifters.update(FIRST_GAP_MAX + 1, W, H, FILES);
+    const afterFirst = drifters.current.length;
+    expect(afterFirst).toBeGreaterThan(0);
+
+    // Nothing new until the shortest recurring gap has elapsed.
+    drifters.update(FIRST_GAP_MAX + MIN_GAP - 1, W, H, FILES);
+    expect(drifters.current.length).toBe(afterFirst);
+  });
+
+  it("builds up to several on screen", () => {
+    const drifters = new Drifters(lcg(4));
     let now = 0;
-    drifters.update(now, W, H, FILES);
-    for (let i = 0; i < 30; i++) {
-      now += MIN_GAP;
+    let most = 0;
+    for (let i = 0; i < 200; i++) {
+      now += 2_000;
       drifters.update(now, W, H, FILES);
-      // `current` is a single slot, so this also proves no second one queues up.
-      expect(drifters.current === null || typeof drifters.current === "object").toBe(
-        true,
-      );
+      most = Math.max(most, drifters.current.length);
+    }
+    expect(most).toBeGreaterThan(1);
+  });
+
+  it("never exceeds the concurrent cap", () => {
+    const drifters = new Drifters(lcg(9));
+    let now = 0;
+    for (let i = 0; i < 500; i++) {
+      now += 1_000;
+      drifters.update(now, W, H, FILES);
+      expect(drifters.current.length).toBeLessThanOrEqual(MAX_CONCURRENT);
     }
   });
 
-  it("clears one once it has left the screen", () => {
-    const drifters = new Drifters(sequence([0]));
-    drifters.update(0, W, H, FILES);
-    drifters.update(MAX_GAP + 1, W, H, FILES);
-    const active = drifters.current;
-    expect(active).not.toBeNull();
-    drifters.update(MAX_GAP + 1 + active!.duration + 1, W, H, FILES);
-    // A fresh one may have spawned, but never the same object.
-    expect(drifters.current).not.toBe(active);
+  it("retires each one when it has left the screen", () => {
+    const drifters = new Drifters(lcg(2));
+    let now = 0;
+    for (let i = 0; i < 40; i++) {
+      now += 3_000;
+      drifters.update(now, W, H, FILES);
+      for (const drifter of drifters.current) {
+        expect(now - drifter.bornAt).toBeLessThan(drifter.duration);
+      }
+    }
   });
 
   it("does nothing when no images have loaded", () => {
     const drifters = new Drifters(sequence([0]));
     drifters.update(0, W, H, []);
     drifters.update(MAX_GAP + 1, W, H, []);
-    expect(drifters.current).toBeNull();
+    expect(drifters.current).toHaveLength(0);
+  });
+});
+
+describe("pickWeighted", () => {
+  it("honours the requested ratios", () => {
+    // The shares given were 30/20/15/10/10/5, which sum to 90 rather than 100,
+    // so they are weights: what matters is that the ratios hold.
+    const counts: Record<string, number> = {};
+    const steps = 100_000;
+    for (let i = 0; i < steps; i++) {
+      const file = pickWeighted(FILES, i / steps);
+      counts[file] = (counts[file] ?? 0) + 1;
+    }
+    const share = (f: string) => (counts[f] ?? 0) / steps;
+    // 30/90, 20/90, 15/90, 10/90, 10/90, 5/90
+    expect(share("5_slushie.png")).toBeCloseTo(30 / 90, 2);
+    expect(share("1_ice_cream.png")).toBeCloseTo(20 / 90, 2);
+    expect(share("2_gherkin.png")).toBeCloseTo(15 / 90, 2);
+    expect(share("3_sausage.png")).toBeCloseTo(10 / 90, 2);
+    expect(share("6_drumstick.png")).toBeCloseTo(10 / 90, 2);
+    expect(share("4_hot_sauce.png")).toBeCloseTo(5 / 90, 2);
+  });
+
+  it("keeps the slushie six times as likely as the hot sauce", () => {
+    expect(APPEARANCE_WEIGHT["5_slushie.png"]! / APPEARANCE_WEIGHT["4_hot_sauce.png"]!)
+      .toBe(6);
+  });
+
+  it("always returns one of the files it was given", () => {
+    for (let i = 0; i <= 20; i++) {
+      expect(FILES).toContain(pickWeighted(FILES, i / 20));
+    }
+    // Out-of-range rolls must not fall off either end.
+    expect(FILES).toContain(pickWeighted(FILES, 1));
+    expect(FILES).toContain(pickWeighted(FILES, -0.5));
+  });
+
+  it("still shows artwork nobody gave a weight", () => {
+    const unknown = ["7_mystery.png"];
+    expect(pickWeighted(unknown, 0.5)).toBe("7_mystery.png");
   });
 });
 
@@ -250,7 +318,6 @@ describe("zoomFade", () => {
     const mid = (ZOOM_FADE_START + ZOOM_FADE_END) / 2;
     expect(zoomFade(mid)).toBeCloseTo(0.5, 6);
 
-    // Monotone all the way down, with no jump at either end.
     let previous = 1;
     for (let zoom = ZOOM_FADE_START; zoom <= ZOOM_FADE_END; zoom += 0.01) {
       const fade = zoomFade(zoom);

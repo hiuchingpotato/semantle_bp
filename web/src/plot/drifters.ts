@@ -25,9 +25,26 @@ export type Drifter = {
   size: number;
 };
 
-/** Gap between appearances. The brief was "once every 5 minutes or more". */
-export const MIN_GAP = 5 * 60_000;
-export const MAX_GAP = 11 * 60_000;
+/**
+ * Gap between appearances.
+ *
+ * A game lasts about five minutes and can be over in two, so the original
+ * five-to-eleven-minute gap meant most players never saw a character at all.
+ * These are set against the crossing time rather than picked in isolation: a
+ * crossing averages twenty seconds, so a mean gap of twenty keeps roughly one
+ * or two on screen, occasionally three, and about half a dozen over a short
+ * game. Busy, not a parade.
+ */
+export const MIN_GAP = 10_000;
+export const MAX_GAP = 30_000;
+
+/**
+ * Wait before the first one. Short, so a two-minute game still sees several,
+ * but not instant - arriving to a screen already full reads as decoration
+ * rather than as something that happens.
+ */
+export const FIRST_GAP_MIN = 4_000;
+export const FIRST_GAP_MAX = 12_000;
 
 /** Pixels per millisecond. A gentle drift, not a flypast. */
 export const MIN_SPEED = 0.06;
@@ -112,6 +129,48 @@ export function zoomFade(zoom: number): number {
 export const EDGE_MARGIN = 8;
 
 /**
+ * Most that may be on screen together. Three is the point where the background
+ * still reads as background; four starts competing with the board.
+ */
+export const MAX_CONCURRENT = 3;
+
+/**
+ * How often each character turns up, relative to the others.
+ *
+ * These are the requested shares - 30, 20, 15, 10, 10, 5 - which sum to 90
+ * rather than 100, so they are used as weights and normalised. That keeps the
+ * ratios exactly as specified: the slushie is six times as likely as the hot
+ * sauce either way.
+ */
+export const APPEARANCE_WEIGHT: Readonly<Record<string, number>> = {
+  "5_slushie.png": 30,
+  "1_ice_cream.png": 20,
+  "2_gherkin.png": 15,
+  "3_sausage.png": 10,
+  "6_drumstick.png": 10,
+  "4_hot_sauce.png": 5,
+};
+
+/**
+ * Pick a character by weight.
+ *
+ * Files with no weight fall back to 1 rather than never appearing, so new
+ * artwork shows up even if someone forgets to add it to the table.
+ */
+export function pickWeighted(files: readonly string[], roll: number): string {
+  const weights = files.map((file) => APPEARANCE_WEIGHT[file] ?? 1);
+  const total = weights.reduce((sum, weight) => sum + weight, 0);
+  if (total <= 0) return files[0]!;
+
+  let cursor = Math.min(Math.max(roll, 0), 0.999999) * total;
+  for (let i = 0; i < files.length; i++) {
+    cursor -= weights[i]!;
+    if (cursor < 0) return files[i]!;
+  }
+  return files[files.length - 1]!;
+}
+
+/**
  * The eight straight-line directions: horizontal, vertical and the four
  * diagonals. No curves - the brief asked for straight lines, and a drifting
  * curve would look like something is steering it.
@@ -139,7 +198,7 @@ export function spawnDrifter(
   height: number,
   now: number,
 ): Drifter {
-  const file = files[Math.min(files.length - 1, Math.floor(random() * files.length))]!;
+  const file = pickWeighted(files, random());
   const direction = DIRECTIONS[
     Math.min(DIRECTIONS.length - 1, Math.floor(random() * DIRECTIONS.length))
   ]!;
@@ -203,7 +262,7 @@ export function drifterAt(drifter: Drifter, now: number) {
 }
 
 export class Drifters {
-  private active: Drifter | null = null;
+  private active: Drifter[] = [];
   private nextSpawn = 0;
   private readonly random: Random;
 
@@ -211,8 +270,8 @@ export class Drifters {
     this.random = random;
   }
 
-  /** Exposed for tests; the renderer only needs update and draw. */
-  get current(): Drifter | null {
+  /** Everything on screen. Exposed for tests; the renderer only draws. */
+  get current(): readonly Drifter[] {
     return this.active;
   }
 
@@ -222,23 +281,26 @@ export class Drifters {
     height: number,
     files: readonly string[],
   ): void {
-    if (this.active && now - this.active.bornAt >= this.active.duration) {
-      this.active = null;
-    }
+    this.active = this.active.filter(
+      (drifter) => now - drifter.bornAt < drifter.duration,
+    );
 
     if (this.nextSpawn === 0) {
-      // Do not open with one the moment the page loads.
-      this.nextSpawn = now + between(this.random, MIN_GAP, MAX_GAP);
+      // A short wait before the first, so the screen is not already full on
+      // arrival. Subsequent gaps are longer.
+      this.nextSpawn = now + between(this.random, FIRST_GAP_MIN, FIRST_GAP_MAX);
       return;
     }
 
-    if (now >= this.nextSpawn && files.length > 0) {
-      // One at a time. Two would stop being an occasional surprise.
-      if (!this.active) {
-        this.active = spawnDrifter(this.random, files, width, height, now);
-      }
-      this.nextSpawn = now + between(this.random, MIN_GAP, MAX_GAP);
+    if (now < this.nextSpawn || files.length === 0) return;
+
+    if (this.active.length < MAX_CONCURRENT) {
+      this.active.push(spawnDrifter(this.random, files, width, height, now));
     }
+    // The timer resets either way. Skipping the reset when the screen is full
+    // would make one spawn the instant a slot frees, which arrives as a
+    // suspicious replacement rather than a new arrival.
+    this.nextSpawn = now + between(this.random, MIN_GAP, MAX_GAP);
   }
 
   draw(
@@ -247,31 +309,33 @@ export class Drifters {
     resolve: (file: string) => HTMLImageElement | null,
     zoom: number,
   ): void {
-    const drifter = this.active;
-    if (!drifter) return;
+    if (this.active.length === 0) return;
 
     const alpha = OPACITY * zoomFade(zoom);
     // Fully faded: skip the work rather than draw nothing.
     if (alpha <= 0.001) return;
 
-    const image = resolve(drifter.file);
-    if (!image) return;
+    // Sized from the reference character, not from each one, so every drifter
+    // occupies the same box whatever artwork is in play.
+    const reference = resolve(SIZE_REFERENCE);
 
-    const { x, y, rotation, progress } = drifterAt(drifter, now);
-    if (progress < 0 || progress > 1) return;
+    for (const drifter of this.active) {
+      const image = resolve(drifter.file);
+      if (!image) continue;
 
-    // Sized from the reference character, not from this one, so every drifter
-    // occupies the same box. Falls back to the image itself if the reference
-    // has not loaded.
-    const reference = resolve(SIZE_REFERENCE) ?? image;
-    const height = drifter.size;
-    const width = (reference.naturalWidth / reference.naturalHeight) * height;
+      const { x, y, rotation, progress } = drifterAt(drifter, now);
+      if (progress < 0 || progress > 1) continue;
 
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.translate(x, y);
-    ctx.rotate(rotation);
-    ctx.drawImage(image, -width / 2, -height / 2, width, height);
-    ctx.restore();
+      const shape = reference ?? image;
+      const height = drifter.size;
+      const width = (shape.naturalWidth / shape.naturalHeight) * height;
+
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.translate(x, y);
+      ctx.rotate(rotation);
+      ctx.drawImage(image, -width / 2, -height / 2, width, height);
+      ctx.restore();
+    }
   }
 }
