@@ -136,6 +136,15 @@ removed — `courgette` and `aubergine` are in it. It is committed at
 a live generator, and **its capitalisation is load-bearing**: lowercasing that
 file would silently destroy proper-noun detection.
 
+**Closed compounds get their own pass.** `fairytale` has a vector and people
+type it, but no dictionary lists it — they carry "fairy tale" and "fairy-tale".
+Splitting on its own is far too loose: 34,000 tokens split into two real words,
+and most are surnames and places, because English place names are built the same
+way as compounds (`grantham` = grant + ham). Requiring both halves to be four
+letters or more, *and* the whole to be something people actually say, cuts that
+to about a hundred — `storybook`, `sleepover`, `voicemail`, `breadcrumbs`. These
+are guessable only, never hintable: they have not passed the hint pool's tests.
+
 **A word with no vector cannot be scored at all.** GloVe 6B is 2014 Wikipedia
 and US newswire, so a few real words are simply absent — `courgette` and
 `serviette` have no vector, and nothing in the pipeline can invent one. Being

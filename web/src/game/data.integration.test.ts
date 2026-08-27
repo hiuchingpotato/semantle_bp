@@ -156,6 +156,19 @@ describe("built data", () => {
     expect(missing, `not guessable: ${missing.join(", ")}`).toEqual([]);
   });
 
+  it("knows closed compounds the dictionaries file as two words", () => {
+    // Reported by a player: "fairytale" was rejected. It has a vector and
+    // people type it, but dictionaries carry "fairy tale" and "fairy-tale",
+    // so the dictionary pass alone never reached it.
+    const known = new Set(vocabulary);
+    const compounds = [
+      "fairytale", "fairytales", "storybook", "sleepover", "takeaway",
+      "voicemail", "grandkids", "playlist", "breadcrumbs", "ringtone",
+    ];
+    const missing = compounds.filter((word) => !known.has(word));
+    expect(missing, `not guessable: ${missing.join(", ")}`).toEqual([]);
+  });
+
   it("has a vocabulary large enough to cover ordinary English", () => {
     // Frequency alone cannot reach far enough; the dictionary pass is what
     // takes this past 100k. A sharp drop means that pass silently stopped.

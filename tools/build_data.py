@@ -95,9 +95,50 @@ def load_dictionary(path: Path) -> set[str]:
     return words
 
 
+# A closed compound is admitted when both halves are at least this long. Three
+# lets surnames in wholesale - grant+ham, ash+ford, gay+lord - because English
+# place names are built the same way as ordinary compounds.
+COMPOUND_MIN_PART = 4
+
+# And when it is something people say. Frequency alone cannot do this job -
+# "denzel" outranks "fairytale" in film subtitles - but paired with the length
+# rule it holds.
+COMPOUND_MAX_SPEECH_RANK = 35_000
+
+
+def make_compound_test(british_common: set[str], speech: dict[str, int]):
+    """Recognise closed compounds the dictionaries file as two words.
+
+    "fairytale" has a vector and people type it, but no dictionary lists it:
+    they carry "fairy tale" and "fairy-tale". Same for storybook, sleepover and
+    voicemail. Being told the game does not know them is the complaint the wider
+    vocabulary was supposed to end.
+
+    Splitting alone is far too loose - 34,000 tokens split into two real words,
+    and most are surnames and places. Both halves being four letters or more,
+    plus the whole being something people say, cuts that to about ninety, mostly
+    genuine with a few harmless proper nouns like "stargate".
+
+    This admits words for *guessing* only. They have not passed the hint pool's
+    tests, and letting them near hints would risk the problem that pool exists
+    to prevent.
+    """
+
+    def is_compound(word: str) -> bool:
+        if speech.get(word, 1 << 30) >= COMPOUND_MAX_SPEECH_RANK:
+            return False
+        for cut in range(COMPOUND_MIN_PART, len(word) - COMPOUND_MIN_PART + 1):
+            if word[:cut] in british_common and word[cut:] in british_common:
+                return True
+        return False
+
+    return is_compound
+
+
 def load_vectors(
     path: Path,
     dictionary: set[str],
+    is_compound,
     frequency_floor: int,
     scan_limit: int,
 ):
@@ -111,6 +152,7 @@ def load_vectors(
     rows: list[np.ndarray] = []
     skipped_blocked = 0
     from_dictionary = 0
+    from_compounds = 0
 
     with path.open("r", encoding="utf-8") as handle:
         for line_no, line in enumerate(handle):
@@ -128,9 +170,12 @@ def load_vectors(
 
             frequent = len(words) < frequency_floor
             if not frequent:
-                if token not in dictionary:
+                if token in dictionary:
+                    from_dictionary += 1
+                elif is_compound(token):
+                    from_compounds += 1
+                else:
                     continue
-                from_dictionary += 1
 
             rows.append(np.array(line[space + 1 :].split(), dtype=np.float32))
             words.append(token)
@@ -139,6 +184,7 @@ def load_vectors(
 
     log(f"  filtered out {skipped_blocked} blocked tokens")
     log(f"  {from_dictionary} words kept on the dictionary rather than frequency")
+    log(f"  {from_compounds} closed compounds the dictionary does not list")
     matrix = np.vstack(rows)
     return words, matrix
 
@@ -153,7 +199,37 @@ HINT_SPEECH_RANK = 80_000
 HINT_COMMON_RANK = 15_000
 
 
-def load_hintable(words: list[str]) -> np.ndarray:
+def read_british() -> tuple[set[str], set[str]]:
+    """Common words and proper nouns, told apart by capitalisation."""
+    common: set[str] = set()
+    proper: set[str] = set()
+    for line in BRITISH.read_text(encoding="utf-8", errors="ignore").splitlines():
+        entry = line.strip()
+        if entry.startswith("#") or not entry.isalpha() or len(entry) < 3:
+            continue
+        (proper if entry[0].isupper() else common).add(entry.lower())
+    # A word that appears both ways - "china" the country and the crockery - is
+    # an ordinary word, so only capital-only entries count as proper nouns.
+    return common, proper - common
+
+
+def read_speech() -> dict[str, int]:
+    """Word -> rank in everyday speech. Lower is more common."""
+    speech: dict[str, int] = {}
+    with EVERYDAY.open("r", encoding="utf-8", errors="ignore") as handle:
+        for line in handle:
+            parts = line.split()
+            if len(parts) == 2 and parts[0].isalpha():
+                speech.setdefault(parts[0].lower(), len(speech))
+    return speech
+
+
+def load_hintable(
+    words: list[str],
+    common: set[str],
+    proper: set[str],
+    speech: dict[str, int],
+) -> np.ndarray:
     """Which words the game may offer as a hint.
 
     Guessing and hinting want different lists. Guessing should accept anything
@@ -177,24 +253,6 @@ def load_hintable(words: list[str]) -> np.ndarray:
     nothing - it stays guessable, and the hint falls to a neighbouring rank -
     while one bad hint is visible and irritating.
     """
-    common: set[str] = set()
-    proper: set[str] = set()
-    for line in BRITISH.read_text(encoding="utf-8", errors="ignore").splitlines():
-        entry = line.strip()
-        if entry.startswith("#") or not entry.isalpha() or len(entry) < 3:
-            continue
-        (proper if entry[0].isupper() else common).add(entry.lower())
-    # A word that appears both ways - "china" the country and the crockery - is
-    # a normal word, so only the capital-only entries count as proper nouns.
-    proper -= common
-
-    speech: dict[str, int] = {}
-    with EVERYDAY.open("r", encoding="utf-8", errors="ignore") as handle:
-        for line in handle:
-            parts = line.split()
-            if len(parts) == 2 and parts[0].isalpha():
-                speech.setdefault(parts[0].lower(), len(speech))
-
     flags = np.zeros(len(words), dtype=bool)
     for index, word in enumerate(words):
         if word in proper:
@@ -396,12 +454,18 @@ def main() -> int:
     if not GLOVE.exists():
         raise SystemExit(f"missing {GLOVE} - see tools/README.md")
 
-    log("reading the dictionary")
+    log("reading the word lists")
     dictionary = load_dictionary(DICTIONARY)
+    british_common, british_proper = read_british()
+    speech = read_speech()
 
     log(f"reading {GLOVE.name}")
     words, vectors = load_vectors(
-        GLOVE, dictionary, args.frequency_floor, args.scan_limit
+        GLOVE,
+        dictionary,
+        make_compound_test(british_common, speech),
+        args.frequency_floor,
+        args.scan_limit,
     )
     log(f"vocabulary: {len(words)} words x {vectors.shape[1]} dims")
 
@@ -414,7 +478,7 @@ def main() -> int:
     layout = compute_layout(unit, args.seed)
 
     log("choosing which words may be hints")
-    hintable = load_hintable(words)
+    hintable = load_hintable(words, british_common, british_proper, speech)
 
     log("building spelling aliases")
     aliases = build_aliases(words, unit)
