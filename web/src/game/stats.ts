@@ -31,6 +31,16 @@ export type StatsRecord = {
   /** Puzzle numbers the player has entered at least one guess for. */
   started: number[];
   solves: SolveRecord[];
+  /**
+   * Puzzles where the player asked to see the answer.
+   *
+   * Kept separately from solves, because giving up is not solving. It is
+   * recorded rather than simply left blank so that the streak breaks the moment
+   * the player gives up: a run ending yesterday normally still counts as
+   * current, which would otherwise leave the streak standing for the rest of
+   * the day after being warned it was lost.
+   */
+  gaveUp?: number[];
 };
 
 export type StatsSummary = {
@@ -39,7 +49,12 @@ export type StatsSummary = {
   maxStreak: number;
 };
 
-export const EMPTY_STATS: StatsRecord = { version: 1, started: [], solves: [] };
+export const EMPTY_STATS: StatsRecord = {
+  version: 1,
+  started: [],
+  solves: [],
+  gaveUp: [],
+};
 
 /** Consecutive runs of solved puzzle numbers, ascending. */
 function solvedRuns(puzzles: number[]): number[][] {
@@ -79,10 +94,17 @@ export function summarise(
 
   const maxStreak = runs.reduce((longest, run) => Math.max(longest, run.length), 0);
 
-  const currentRun = runs.find((run) => {
-    const end = run[run.length - 1];
-    return end === todayNumber || end === todayNumber - 1;
-  });
+  // Giving up ends the streak now, not at midnight. Without this a player who
+  // was told "you will lose your streak" would still see it intact until the
+  // next puzzle arrived.
+  const forfeitedToday = (stats.gaveUp ?? []).includes(todayNumber);
+
+  const currentRun = forfeitedToday
+    ? undefined
+    : runs.find((run) => {
+        const end = run[run.length - 1];
+        return end === todayNumber || end === todayNumber - 1;
+      });
 
   return {
     played: new Set(stats.started).size,
@@ -137,7 +159,9 @@ export type PuzzleState =
   /** Finished on the day, so it counts towards the streak. */
   | "solved"
   /** Finished later. Kept as a record, but not part of any streak. */
-  | "replayed";
+  | "replayed"
+  /** The player asked to see the answer. */
+  | "gaveup";
 
 export function puzzleState(
   stats: StatsRecord,
@@ -147,7 +171,25 @@ export function puzzleState(
   if (puzzle > todayNumber || puzzle < 0) return "locked";
   const solve = findSolve(stats, puzzle);
   if (solve) return solve.onTime ? "solved" : "replayed";
+  if (hasGivenUp(stats, puzzle)) return "gaveup";
   return stats.started.includes(puzzle) ? "started" : "unplayed";
+}
+
+/** Record that the player asked to see the answer. Idempotent. */
+export function recordGiveUp(stats: StatsRecord, puzzle: number): StatsRecord {
+  const gaveUp = stats.gaveUp ?? [];
+  if (gaveUp.includes(puzzle)) return stats;
+  return {
+    ...stats,
+    started: stats.started.includes(puzzle)
+      ? stats.started
+      : [...stats.started, puzzle],
+    gaveUp: [...gaveUp, puzzle],
+  };
+}
+
+export function hasGivenUp(stats: StatsRecord, puzzle: number): boolean {
+  return (stats.gaveUp ?? []).includes(puzzle);
 }
 
 export function findSolve(
@@ -194,5 +236,9 @@ export function reviveStats(value: unknown): StatsRecord {
         .map((entry) => ({ ...entry, onTime: entry.onTime === true }))
     : [];
 
-  return { version: 1, started, solves };
+  const gaveUp = Array.isArray(record.gaveUp)
+    ? record.gaveUp.filter((n): n is number => Number.isInteger(n))
+    : [];
+
+  return { version: 1, started, solves, gaveUp };
 }

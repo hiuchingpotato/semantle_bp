@@ -17,6 +17,8 @@ import { puzzleNumberFor, readRequestedPuzzle, resolveSchedule } from "./schedul
 import {
   EMPTY_STATS,
   findSolve,
+  hasGivenUp,
+  recordGiveUp,
   recordSolve,
   recordStart,
   summarise,
@@ -72,6 +74,10 @@ export type GameState = {
   showStats: boolean;
   openStats: () => void;
   dismissStats: () => void;
+  /** True once the player has asked to see the answer. */
+  gaveUp: boolean;
+  /** Reveal the answer. No confirmation here - the caller asks first. */
+  confirmGiveUp: () => void;
   /** True while the how-it-works modal should be on screen. */
   showAbout: boolean;
   openAbout: () => void;
@@ -104,6 +110,7 @@ export function useGame(now: Date = new Date()): GameState {
   const [showWin, setShowWin] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
+  const [gaveUp, setGaveUp] = useState(false);
   const [aliases, setAliases] = useState<Record<string, string>>({});
   const [hintPool, setHintPool] = useState<Uint8Array | null>(null);
 
@@ -204,7 +211,8 @@ export function useGame(now: Date = new Date()): GameState {
         const alreadySolved =
           wasSolved !== null || restored.some((g) => g.rank === 0);
         setStats(loadedStats);
-        setSolved(alreadySolved);
+        setSolved(alreadySolved || hasGivenUp(loadedStats, resolved.active));
+        setGaveUp(hasGivenUp(loadedStats, resolved.active));
         // A puzzle solved in an earlier session keeps its recorded time rather
         // than recomputing from a stale clock. The modal stays closed - it is a
         // reward for the moment of solving, not something to greet you on every
@@ -293,6 +301,15 @@ export function useGame(now: Date = new Date()): GameState {
         void saveStats(started);
       }
 
+      if (rank === 0 && revealed) {
+        // Given up: the board is finished and the answer is on it, but nothing
+        // is recorded as solved. markSolved is deliberately not called either,
+        // or a reload would restore this as a win.
+        setSolved(true);
+        setElapsedSeconds(null);
+        return;
+      }
+
       if (rank === 0) {
         const seconds = Math.round(
           (at.getTime() - (startedAtRef.current ?? at).getTime()) / 1000,
@@ -340,6 +357,32 @@ export function useGame(now: Date = new Date()): GameState {
     },
     [aliases, play, wordIndex],
   );
+
+  /**
+   * Reveal the answer and end the game.
+   *
+   * The word goes on the board marked as revealed, exactly like a hint, so the
+   * player can see where it sat. No solve is recorded: giving up is not
+   * solving, and recording one would put a false result in the history and in
+   * any shared message.
+   *
+   * The forfeit is written down rather than simply left blank, so the streak
+   * breaks now instead of at midnight - the confirmation says it will be lost,
+   * and it should be.
+   */
+  const confirmGiveUp = useCallback(() => {
+    if (!puzzle || solved) return;
+    const word = vocabulary[puzzle.secretIndex];
+    if (word === undefined) return;
+
+    const recorded = recordGiveUp(statsRef.current, puzzle.number);
+    statsRef.current = recorded;
+    setStats(recorded);
+    void saveStats(recorded);
+
+    setGaveUp(true);
+    play(word, puzzle.secretIndex, true);
+  }, [play, puzzle, solved, vocabulary]);
 
   const hint = useMemo(() => hintAvailability(guesses), [guesses]);
 
@@ -390,6 +433,8 @@ export function useGame(now: Date = new Date()): GameState {
     showStats,
     openStats,
     dismissStats,
+    gaveUp,
+    confirmGiveUp,
     showAbout,
     openAbout,
     dismissAbout,

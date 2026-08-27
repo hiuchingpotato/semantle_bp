@@ -27,6 +27,7 @@ const STATE_LABEL: Record<PuzzleState, string> = {
   solved: "solved on the day",
   replayed: "solved later",
   started: "in progress",
+  gaveup: "gave up",
   unplayed: "not played",
   locked: "not available yet",
 };

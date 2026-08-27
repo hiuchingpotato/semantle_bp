@@ -67,6 +67,8 @@ export type ShareSummary = {
   guesses: number;
   hints: number;
   seconds: number | null;
+  /** True when the player asked to see the answer instead of finding it. */
+  gaveUp?: boolean;
 };
 
 /**
@@ -77,6 +79,18 @@ export type ShareSummary = {
  * played yet, which would defeat the point of sharing it.
  */
 export function buildShareText(summary: ShareSummary): string {
+  // Giving up says so. A guess count on a revealed answer would read as a
+  // result, and the point of sharing is that it is true.
+  if (summary.gaveUp) {
+    return [
+      `Closer - Daily Demo ${summary.puzzleNumber}`,
+      `gave up after ${summary.guesses} ${
+        summary.guesses === 1 ? "guess" : "guesses"
+      }`,
+      gameUrl(),
+    ].join("\n");
+  }
+
   const parts = [
     `${summary.guesses} ${summary.guesses === 1 ? "guess" : "guesses"}`,
   ];

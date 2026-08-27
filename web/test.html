@@ -131,6 +131,9 @@
         <button type="button" class="button-ghost" id="open-stats">
           Show statistics modal
         </button>
+        <button type="button" class="button-ghost" id="open-confirm">
+          Show give-up confirm
+        </button>
         <button type="button" class="button-ghost" id="copy">
           Test copy format
         </button>
@@ -231,6 +234,31 @@ https://hiuchingpotato.github.io/semantle_bp/</pre>
             </span>
           </li>
         </ol>
+      </div>
+    </div>
+
+    <div class="modal-backdrop" id="confirm-backdrop" hidden>
+      <div
+        class="modal modal-confirm"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-title"
+      >
+        <button type="button" class="modal-close" id="confirm-close" aria-label="Close">
+          ×
+        </button>
+        <h2 id="confirm-title" class="modal-title modal-title-plain">Give up?</h2>
+        <p class="modal-confirm-body">
+          Are you sure you want to give up? You will lose your streak.
+        </p>
+        <div class="modal-actions">
+          <button type="button" class="button-primary" id="confirm-no">
+            No, keep playing
+          </button>
+          <button type="button" class="button-danger" id="confirm-yes">
+            Yes, reveal it
+          </button>
+        </div>
       </div>
     </div>
 
@@ -383,10 +411,23 @@ https://hiuchingpotato.github.io/semantle_bp/</pre>
         if (event.target === statsBackdrop) closeStats();
       });
 
+      const confirmBackdrop = document.getElementById("confirm-backdrop");
+      const closeConfirm = () => (confirmBackdrop.hidden = true);
+      document
+        .getElementById("open-confirm")
+        .addEventListener("click", () => (confirmBackdrop.hidden = false));
+      for (const id of ["confirm-close", "confirm-no", "confirm-yes"]) {
+        document.getElementById(id).addEventListener("click", closeConfirm);
+      }
+      confirmBackdrop.addEventListener("mousedown", (event) => {
+        if (event.target === confirmBackdrop) closeConfirm();
+      });
+
       document.addEventListener("keydown", (event) => {
         if (event.key !== "Escape") return;
         close();
         closeStats();
+        closeConfirm();
       });
 
       async function copyResult(button, restoreLabel, note) {

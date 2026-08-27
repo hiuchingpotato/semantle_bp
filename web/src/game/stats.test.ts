@@ -5,6 +5,9 @@ import {
   StatsRecord,
   findSolve,
   formatDuration,
+  hasGivenUp,
+  puzzleState,
+  recordGiveUp,
   recordSolve,
   recordStart,
   reviveStats,
@@ -101,6 +104,61 @@ describe("summarise", () => {
 
   it("handles puzzle zero", () => {
     expect(summarise(withSolves([0]), 0).currentStreak).toBe(1);
+  });
+});
+
+describe("giving up", () => {
+  it("breaks the streak straight away, not at midnight", () => {
+    // The confirmation says the streak will be lost, so it has to be lost now.
+    // A run ending yesterday normally still counts as current, which would
+    // otherwise leave it standing for the rest of the day.
+    const solved = withSolves([76, 77]);
+    expect(summarise(solved, 78).currentStreak).toBe(2);
+
+    const forfeited = recordGiveUp(solved, 78);
+    expect(summarise(forfeited, 78).currentStreak).toBe(0);
+  });
+
+  it("leaves the best run on record", () => {
+    const forfeited = recordGiveUp(withSolves([76, 77]), 78);
+    expect(summarise(forfeited, 78).maxStreak).toBe(2);
+  });
+
+  it("counts as a game played", () => {
+    expect(summarise(recordGiveUp(EMPTY_STATS, 5), 5).played).toBe(1);
+  });
+
+  it("is not a solve", () => {
+    const forfeited = recordGiveUp(EMPTY_STATS, 5);
+    expect(findSolve(forfeited, 5)).toBeUndefined();
+    expect(forfeited.solves).toHaveLength(0);
+  });
+
+  it("is idempotent", () => {
+    const once = recordGiveUp(EMPTY_STATS, 5);
+    expect(recordGiveUp(once, 5).gaveUp).toEqual([5]);
+  });
+
+  it("shows on the calendar as its own state", () => {
+    const forfeited = recordGiveUp(EMPTY_STATS, 5);
+    expect(puzzleState(forfeited, 5, 10)).toBe("gaveup");
+    expect(hasGivenUp(forfeited, 5)).toBe(true);
+    expect(hasGivenUp(forfeited, 4)).toBe(false);
+  });
+
+  it("does not disturb a streak on other days", () => {
+    // Given up on 70, then played properly through to today.
+    let stats = recordGiveUp(EMPTY_STATS, 70);
+    for (const puzzle of [76, 77, 78]) {
+      stats = recordSolve(stats, solve(puzzle));
+    }
+    expect(summarise(stats, 78).currentStreak).toBe(3);
+  });
+
+  it("survives a record written before it existed", () => {
+    const old = reviveStats({ version: 1, started: [1], solves: [] });
+    expect(old.gaveUp).toEqual([]);
+    expect(() => summarise(old, 1)).not.toThrow();
   });
 });
 

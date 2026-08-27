@@ -8,6 +8,7 @@ type Props = {
   hint: HintAvailability;
   onSubmit: (word: string) => void;
   onHint: () => void;
+  onGiveUp: () => void;
 };
 
 export default function GuessForm({
@@ -16,6 +17,7 @@ export default function GuessForm({
   hint,
   onSubmit,
   onHint,
+  onGiveUp,
 }: Props) {
   const [value, setValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -74,6 +76,17 @@ export default function GuessForm({
             ? "Reveals a word half as far from the answer"
             : hint.reason}
         </span>
+
+        {/* Last in the row and styled quietly: it is always available, but it
+            should never be the obvious thing to press. */}
+        <button
+          type="button"
+          className="button-ghost button-giveup"
+          onClick={onGiveUp}
+          disabled={disabled}
+        >
+          Give up
+        </button>
       </div>
 
       {/* Errors are announced as well as shown - a silent shake helps nobody. */}

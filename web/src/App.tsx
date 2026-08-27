@@ -1,7 +1,10 @@
+import { useState } from "react";
+
 import { useGame } from "./game/useGame";
 import OrbitField from "./plot/OrbitField";
 import AboutModal from "./ui/AboutModal";
 import Calendar from "./ui/Calendar";
+import ConfirmModal from "./ui/ConfirmModal";
 import GuessForm from "./ui/GuessForm";
 import GuessList from "./ui/GuessList";
 import SolvedPanel from "./ui/SolvedPanel";
@@ -13,6 +16,7 @@ import { usePageZoomGuard } from "./ui/usePageZoomGuard";
 export default function App() {
   const game = useGame();
   usePageZoomGuard();
+  const [confirmGiveUp, setConfirmGiveUp] = useState(false);
 
   if (game.status === "loading") {
     return (
@@ -88,6 +92,7 @@ export default function App() {
               secretWord={secretWord}
               isArchive={game.isArchive}
               elapsedSeconds={game.elapsedSeconds}
+              gaveUp={game.gaveUp}
             />
           )}
 
@@ -100,6 +105,7 @@ export default function App() {
               hint={game.hint}
               onSubmit={game.submitGuess}
               onHint={game.takeHint}
+              onGiveUp={() => setConfirmGiveUp(true)}
             />
           )}
 
@@ -127,6 +133,20 @@ export default function App() {
           stats={game.stats}
           isArchive={game.isArchive}
           onClose={game.dismissWin}
+        />
+      )}
+
+      {confirmGiveUp && (
+        <ConfirmModal
+          title="Give up?"
+          body="Are you sure you want to give up? You will lose your streak."
+          confirmLabel="Yes, reveal it"
+          cancelLabel="No, keep playing"
+          onConfirm={() => {
+            setConfirmGiveUp(false);
+            game.confirmGiveUp();
+          }}
+          onCancel={() => setConfirmGiveUp(false)}
         />
       )}
 

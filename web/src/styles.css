@@ -1039,6 +1039,13 @@ button:disabled {
   border-color: rgba(136, 208, 178, 0.35);
 }
 
+/* Given up: marked, but plainly not a win. */
+.calendar-day.is-gaveup {
+  color: var(--text-faint);
+  background: rgba(146, 170, 214, 0.06);
+  border-color: rgba(146, 170, 214, 0.25);
+}
+
 .calendar-day.is-locked {
   color: rgba(116, 130, 168, 0.4);
   background: transparent;
@@ -1257,4 +1264,49 @@ button:disabled {
 .guess-flame {
   font-size: 1.1rem;
   line-height: 1;
+}
+
+/* Give up sits at the far end of the hint row, pushed away from the buttons
+   that help. */
+.button-giveup {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.button-danger {
+  padding: 0.65rem 1rem;
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #fff;
+  background: var(--tone-solved);
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.button-danger:hover:not(:disabled) {
+  background: #ff6a6a;
+}
+
+.modal-confirm {
+  width: min(23rem, 100%);
+  border-color: var(--ink-line);
+}
+
+.modal-confirm-body {
+  margin: 0.75rem 0 0;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--text-dim);
+}
+
+/* A forfeited puzzle is recorded, but it does not get the winner's colour. */
+.panel-solved.is-gaveup {
+  border-color: var(--ink-line);
+  background: rgba(146, 170, 214, 0.05);
+}
+
+.panel-solved.is-gaveup .solved-word {
+  color: var(--text-dim);
 }

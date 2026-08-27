@@ -13,6 +13,7 @@ type Props = {
   secretWord: string;
   isArchive: boolean;
   elapsedSeconds: number | null;
+  gaveUp: boolean;
 };
 
 function useCountdown(target: Date): string {
@@ -48,6 +49,7 @@ export default function SolvedPanel({
   secretWord,
   isArchive,
   elapsedSeconds,
+  gaveUp,
 }: Props) {
   const countdown = useCountdown(nextRollover(new Date()));
   const hints = guesses.filter((guess) => guess.revealed).length;
@@ -57,14 +59,21 @@ export default function SolvedPanel({
       guesses: guesses.length,
       hints,
       seconds: elapsedSeconds,
+      gaveUp,
     }),
   );
 
   return (
-    <section className="panel panel-solved" aria-labelledby="solved-heading">
-      <h2 id="solved-heading">Solved &mdash; puzzle {puzzleNumber}</h2>
+    <section
+      className={`panel panel-solved${gaveUp ? " is-gaveup" : ""}`}
+      aria-labelledby="solved-heading"
+    >
+      <h2 id="solved-heading">
+        {gaveUp ? "Gave up" : "Solved"} &mdash; puzzle {puzzleNumber}
+      </h2>
       <p className="solved-word">{secretWord}</p>
       <p className="solved-summary">
+        {gaveUp && "answer revealed after "}
         {guesses.length} {guesses.length === 1 ? "word" : "words"}
         {elapsedSeconds !== null && ` · ${formatDuration(elapsedSeconds)}`}
         {hints > 0 && ` · ${hints} ${hints === 1 ? "hint" : "hints"}`}
