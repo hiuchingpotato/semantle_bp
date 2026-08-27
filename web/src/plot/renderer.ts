@@ -217,11 +217,8 @@ export class OrbitRenderer {
         viewport.height,
         this.markers.readyFiles,
       );
-      this.drifters.draw(
-        ctx,
-        input.timeMs,
-        (file) => this.markers.byFile(file),
-        input.camera.scale / ZOOM_REFERENCE,
+      this.drifters.draw(ctx, input.timeMs, (file) =>
+        this.markers.byFile(file),
       );
     }
 

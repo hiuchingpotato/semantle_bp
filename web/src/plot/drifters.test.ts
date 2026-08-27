@@ -14,13 +14,10 @@ import {
   SIZE,
   SPIN_MULTIPLIER,
   SPIN_TURNS,
-  ZOOM_FADE_END,
-  ZOOM_FADE_START,
   drifterAt,
   pickWeighted,
   spawnDrifter,
   spinTurnsFor,
-  zoomFade,
 } from "./drifters";
 import { ANSWER_SCALE, MARKER_HEIGHT, MARKER_OPACITY } from "./markers";
 
@@ -300,41 +297,16 @@ describe("pickWeighted", () => {
   });
 });
 
-describe("zoomFade", () => {
-  it("stays fully visible however far the board is zoomed out", () => {
-    for (const zoom of [0.05, 0.2, 0.5, 0.9, 1, ZOOM_FADE_START]) {
-      expect(zoomFade(zoom)).toBe(1);
-    }
-  });
-
-  it("is gone at 1.6x and beyond", () => {
-    expect(ZOOM_FADE_END).toBe(1.6);
-    for (const zoom of [ZOOM_FADE_END, 2, 10, 150]) {
-      expect(zoomFade(zoom)).toBe(0);
-    }
-  });
-
-  it("fades rather than cutting", () => {
-    const mid = (ZOOM_FADE_START + ZOOM_FADE_END) / 2;
-    expect(zoomFade(mid)).toBeCloseTo(0.5, 6);
-
-    let previous = 1;
-    for (let zoom = ZOOM_FADE_START; zoom <= ZOOM_FADE_END; zoom += 0.01) {
-      const fade = zoomFade(zoom);
-      expect(fade).toBeLessThanOrEqual(previous + 1e-9);
-      expect(fade).toBeGreaterThanOrEqual(0);
-      previous = fade;
-    }
-  });
-
-  it("survives a nonsense zoom", () => {
-    expect(zoomFade(NaN)).toBe(1);
-    expect(zoomFade(-5)).toBe(1);
-    expect(zoomFade(Infinity)).toBe(1);
-  });
-});
-
 describe("appearance", () => {
+  it("ignores board zoom entirely", () => {
+    // These used to fade out between 1.2x and 1.6x. The default view is
+    // already around 1x, one poor guess puts the board past 1.6x and a good
+    // one past 40x, so that hid them for almost every game rather than only
+    // when zoomed right in. draw() no longer takes a zoom at all - this
+    // asserts the signature, so reintroducing one is a deliberate act.
+    expect(Drifters.prototype.draw.length).toBe(3);
+  });
+
   it("is a tenth less solid than a played marker", () => {
     expect(OPACITY).toBeCloseTo(MARKER_OPACITY * 0.9, 6);
     // Still clearly behind the game rather than part of it.

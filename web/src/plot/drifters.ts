@@ -116,23 +116,19 @@ export function spinTurnsFor(file: string): number {
  */
 export const SIZE_REFERENCE = "5_slushie.png";
 
-/**
- * Zoom levels, in the units the on-screen readout uses.
+/*
+ * There is deliberately no zoom-based fade here.
  *
- * Zoomed out, a drifting character is scenery and stays put however far the
- * board is pulled back. Zoomed in, the player is working on a handful of words
- * and a large spinning sprite crossing the view is just in the way - so it
- * fades out rather than being cut, which would read as a glitch.
+ * There used to be one, fading these out between 1.2x and 1.6x on the theory
+ * that a spinning sprite is in the way when the player is working closely. The
+ * thresholds were chosen without checking what zoom the game actually reaches:
+ * the default view is already 0.9-1.2x depending on the window, one bad guess
+ * puts it past 1.6x, and a good guess puts it at 40x or more. The effect was
+ * not "hidden when zoomed right in" but "hidden almost always".
+ *
+ * These are screen-space decoration and do not belong to the board, so they now
+ * ignore its zoom entirely.
  */
-export const ZOOM_FADE_START = 1.2;
-export const ZOOM_FADE_END = 1.6;
-
-/** Multiplier on OPACITY for the current zoom: 1 when out, 0 at FADE_END. */
-export function zoomFade(zoom: number): number {
-  if (!Number.isFinite(zoom) || zoom <= ZOOM_FADE_START) return 1;
-  if (zoom >= ZOOM_FADE_END) return 0;
-  return 1 - (zoom - ZOOM_FADE_START) / (ZOOM_FADE_END - ZOOM_FADE_START);
-}
 
 /** Extra clearance beyond the edge, so a sprite never touches it. */
 export const EDGE_MARGIN = 8;
@@ -316,13 +312,8 @@ export class Drifters {
     ctx: CanvasRenderingContext2D,
     now: number,
     resolve: (file: string) => HTMLImageElement | null,
-    zoom: number,
   ): void {
     if (this.active.length === 0) return;
-
-    const alpha = OPACITY * zoomFade(zoom);
-    // Fully faded: skip the work rather than draw nothing.
-    if (alpha <= 0.001) return;
 
     // Sized from the reference character, not from each one, so every drifter
     // occupies the same box whatever artwork is in play.
@@ -340,7 +331,7 @@ export class Drifters {
       const width = (shape.naturalWidth / shape.naturalHeight) * height;
 
       ctx.save();
-      ctx.globalAlpha = alpha;
+      ctx.globalAlpha = OPACITY;
       ctx.translate(x, y);
       ctx.rotate(rotation);
       ctx.drawImage(image, -width / 2, -height / 2, width, height);
