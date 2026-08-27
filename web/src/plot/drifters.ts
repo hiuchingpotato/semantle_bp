@@ -62,10 +62,13 @@ export const SIZE = MARKER_HEIGHT * ANSWER_SCALE * 0.9;
  * How solid a drifting character is, relative to a played marker.
  *
  * Derived rather than typed in, so the two cannot drift apart if marker opacity
- * is ever changed. A tenth softer than a played marker: enough to sit behind
- * the game without being hard to see. At half it was barely there.
+ * is ever changed. Only a shade softer than a played marker - just enough to
+ * sit behind the game. Half, and then nine tenths, both read as washed out.
+ *
+ * Note the drifters are drawn under the word field, which costs a further 3%
+ * or so where the dust is dense, so on screen they land near 0.92.
  */
-export const OPACITY = MARKER_OPACITY * 0.9;
+export const OPACITY = MARKER_OPACITY * 0.95;
 
 /**
  * Turns across the journey, for the slushie. One full rotation looked sluggish

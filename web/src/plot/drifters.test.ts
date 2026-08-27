@@ -307,8 +307,8 @@ describe("appearance", () => {
     expect(Drifters.prototype.draw.length).toBe(3);
   });
 
-  it("is a tenth less solid than a played marker", () => {
-    expect(OPACITY).toBeCloseTo(MARKER_OPACITY * 0.9, 6);
+  it("is a shade less solid than a played marker", () => {
+    expect(OPACITY).toBeCloseTo(MARKER_OPACITY * 0.95, 6);
     // Still clearly behind the game rather than part of it.
     expect(OPACITY).toBeLessThan(MARKER_OPACITY);
   });
