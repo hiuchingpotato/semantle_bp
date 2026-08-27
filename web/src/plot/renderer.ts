@@ -454,7 +454,7 @@ export class OrbitRenderer {
 
     ctx.save();
     ctx.strokeStyle = solved
-      ? "rgba(255, 214, 132, 0.95)"
+      ? "rgba(255, 77, 77, 0.95)"
       : "rgba(190, 210, 240, 0.45)";
     ctx.lineWidth = 1.5;
 
@@ -484,7 +484,7 @@ export class OrbitRenderer {
       ctx.lineWidth = 4;
       ctx.strokeStyle = "rgba(8, 12, 26, 0.9)";
       ctx.strokeText(secretWord, px, labelY);
-      ctx.fillStyle = "#ffd684";
+      ctx.fillStyle = "#ff4d4d";
       ctx.fillText(secretWord, px, labelY);
     }
 
@@ -497,7 +497,7 @@ export class OrbitRenderer {
  * here. Keep in step with the --tone-* values in styles.css.
  */
 const TONES: Record<string, [number, number, number]> = {
-  solved: [255, 214, 132],
+  solved: [255, 77, 77],
   blazing: [255, 138, 96],
   scorching: [255, 163, 92],
   burning: [255, 190, 96],

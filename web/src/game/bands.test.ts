@@ -47,8 +47,15 @@ describe("formatRank", () => {
     expect(formatRank(1000)).toBeNull();
   });
 
-  it("shows nothing for the answer itself", () => {
-    expect(formatRank(0)).toBeNull();
+  it("shows the answer as first place", () => {
+    expect(formatRank(0)).toBe("1");
+  });
+
+  it("does not confuse the answer with the closest word", () => {
+    // Internal rank 1 is the closest word that is not the answer, and it
+    // already displays "#1". The answer drops the hash so the two rows cannot
+    // be read as the same position.
+    expect(formatRank(0)).not.toBe(formatRank(1));
   });
 });
 

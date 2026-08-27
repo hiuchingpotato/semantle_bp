@@ -70,8 +70,8 @@ export const MARKER_FOCUS_HEIGHT = 49;
  */
 export const MARKER_OPACITY = 1;
 
-/** Gold halo drawn behind the answer. Matches --tone-solved in styles.css. */
-export const ANSWER_GLOW_COLOUR = "#ffd684";
+/** Halo drawn behind the answer. Matches --tone-solved in styles.css. */
+export const ANSWER_GLOW_COLOUR = "#ff4d4d";
 
 /**
  * How far the halo reaches past the artwork, in pixels.

@@ -19,7 +19,9 @@
   --text-faint: #74849f;
   --accent: #7aa2d6;
 
-  --tone-solved: #ffd684;
+  /* Red for the win. Bright enough to hold against the dark board, and clear
+     of --tone-blazing so the answer never reads as merely a very good guess. */
+  --tone-solved: #ff4d4d;
   --tone-blazing: #ff8a60;
   --tone-scorching: #ffa35c;
   --tone-burning: #ffbe60;
@@ -560,8 +562,8 @@ button:disabled {
 }
 
 .panel-solved {
-  border-color: rgba(255, 214, 132, 0.35);
-  background: rgba(255, 214, 132, 0.07);
+  border-color: rgba(255, 77, 77, 0.35);
+  background: rgba(255, 77, 77, 0.08);
 }
 
 .solved-word {
@@ -727,8 +729,8 @@ button:disabled {
    larger type and more weight, so it reads as a result rather than a row. */
 .guess-row.is-answer {
   padding: 0.6rem 0.5rem;
-  background: rgba(255, 214, 132, 0.12);
-  box-shadow: inset 0 0 0 1px rgba(255, 214, 132, 0.3);
+  background: rgba(255, 77, 77, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(255, 77, 77, 0.32);
 }
 
 .guess-row.is-answer .guess-word {
@@ -760,7 +762,7 @@ button:disabled {
   padding: 1.75rem 1.5rem 1.25rem;
   text-align: center;
   background: #121a2e;
-  border: 1px solid rgba(255, 214, 132, 0.28);
+  border: 1px solid rgba(255, 77, 77, 0.28);
   border-radius: 14px;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
   animation: rise-in 200ms cubic-bezier(0.2, 0.8, 0.3, 1);
@@ -1248,4 +1250,11 @@ button:disabled {
 .notice:not(.is-visible) {
   min-height: 0;
   margin-top: 0;
+}
+
+/* The flame on the solved row. Sits after the word, sized to the larger type
+   that row already uses. */
+.guess-flame {
+  font-size: 1.1rem;
+  line-height: 1;
 }

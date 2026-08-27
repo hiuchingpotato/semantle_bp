@@ -51,7 +51,10 @@ export function bandForRank(rank: number): Band {
 export const RANK_VISIBLE_WITHIN = 1000;
 
 export function formatRank(rank: number): string | null {
-  if (rank === 0) return null;
+  // The answer shows a plain "1" for first place. No hash, because the word at
+  // internal rank 1 - the closest word that is not the answer - already shows
+  // "#1", and two rows reading the same would be worse than the inconsistency.
+  if (rank === 0) return "1";
   return rank < RANK_VISIBLE_WITHIN ? `#${rank}` : null;
 }
 

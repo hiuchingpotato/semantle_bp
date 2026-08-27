@@ -29,6 +29,14 @@ export default function GuessRow({ guess, isFocus }: Props) {
       </span>
       <span className="guess-word">
         {guess.word}
+        {guess.rank === 0 && (
+          // Decoration on a row that already says "Solved" and is coloured and
+          // sized differently, so it is hidden from screen readers rather than
+          // read out as "fire".
+          <span className="guess-flame" aria-hidden="true">
+            🔥
+          </span>
+        )}
         {guess.revealed && <span className="guess-tag">hint</span>}
       </span>
       <span className="guess-similarity" title="Semantic similarity">
