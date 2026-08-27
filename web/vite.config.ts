@@ -12,5 +12,9 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/*.test.ts"],
+    // The integration tests walk a 105,000-word vocabulary across 216 puzzle
+    // files. That is comfortable on a dev machine and several times slower on a
+    // CI runner, where the 5s default is not enough headroom.
+    testTimeout: 30_000,
   },
 });

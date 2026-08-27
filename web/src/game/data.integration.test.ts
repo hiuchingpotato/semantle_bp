@@ -69,16 +69,22 @@ describe("built data", () => {
     expect(layout.angles).toHaveLength(manifest.wordCount);
     expect(layout.jitter).toHaveLength(manifest.wordCount);
 
+    // Counted in plain code and asserted once. An expect() per word is 200,000
+    // calls across the vocabulary, which is slow enough to threaten the
+    // per-test timeout on a CI runner.
+    let badAngles = 0;
     for (const angle of layout.angles) {
-      expect(Number.isFinite(angle)).toBe(true);
-      expect(Math.abs(angle)).toBeLessThanOrEqual(Math.PI + 0.01);
+      if (!Number.isFinite(angle) || Math.abs(angle) > Math.PI + 0.01) badAngles++;
     }
+    expect(badAngles, "angles outside -pi..pi").toBe(0);
+
+    let badJitter = 0;
     for (const jitter of layout.jitter) {
       // Cosmetic scatter only - a multiplier this size cannot move a word
       // across a guide ring and mislead the player about its band.
-      expect(jitter).toBeGreaterThan(0.9);
-      expect(jitter).toBeLessThan(1.1);
+      if (jitter <= 0.9 || jitter >= 1.1) badJitter++;
     }
+    expect(badJitter, "jitter outside 0.9..1.1").toBe(0);
   });
 
   it("has no blocked words in the vocabulary", () => {
@@ -106,13 +112,15 @@ describe("built data", () => {
     expect(entries.length).toBeGreaterThan(100);
 
     const known = new Set(vocabulary);
-    for (const [british, american] of entries) {
-      expect(known.has(british), `alias source missing: ${british}`).toBe(true);
-      expect(known.has(american), `alias target missing: ${american}`).toBe(true);
-      // A chain would mean a lookup has to be followed more than once.
-      expect(aliases[american], `${american} is itself aliased`).toBeUndefined();
-      expect(british).not.toBe(american);
-    }
+    const broken = entries.filter(
+      ([british, american]) =>
+        !known.has(british) ||
+        !known.has(american) ||
+        british === american ||
+        // A chain would mean a lookup has to be followed more than once.
+        aliases[american] !== undefined,
+    );
+    expect(broken.slice(0, 5), "aliases that do not resolve").toEqual([]);
   });
 
   it("aliases the spellings a British player will actually type", () => {
@@ -182,11 +190,11 @@ describe("built data", () => {
     expect(Object.keys(pairs).length).toBeGreaterThan(5_000);
 
     const known = new Set(vocabulary);
-    for (const [singular, plural] of Object.entries(pairs)) {
-      expect(known.has(singular), `missing: ${singular}`).toBe(true);
-      expect(known.has(plural), `missing: ${plural}`).toBe(true);
-      expect(singular).not.toBe(plural);
-    }
+    const broken = Object.entries(pairs).filter(
+      ([singular, plural]) =>
+        !known.has(singular) || !known.has(plural) || singular === plural,
+    );
+    expect(broken.slice(0, 5), "pairs that do not resolve").toEqual([]);
 
     // The pairs a player will actually run into.
     for (const [a, b] of [
@@ -213,9 +221,8 @@ describe("built data", () => {
   });
 
   it("keeps the vocabulary to plain lowercase words", () => {
-    for (const word of vocabulary) {
-      expect(word).toMatch(/^[a-z]{3,}$/);
-    }
+    const malformed = vocabulary.filter((word) => !/^[a-z]{3,}$/.test(word));
+    expect(malformed.slice(0, 5), "not plain lowercase words").toEqual([]);
   });
 });
 
@@ -231,20 +238,28 @@ describe("a real puzzle", () => {
   it("ranks every word exactly once", () => {
     const seen = new Set(puzzle.indexByRank);
     expect(seen.size).toBe(manifest.wordCount);
+
+    let unranked = 0;
     for (let i = 0; i < manifest.wordCount; i++) {
-      expect(puzzle.rankByVocabIndex[i]).toBeGreaterThanOrEqual(0);
+      if ((puzzle.rankByVocabIndex[i] ?? -1) < 0) unranked++;
     }
+    expect(unranked, "words with no rank").toBe(0);
   });
 
   it("orders similarity from best to worst without gaps", () => {
+    // float16 quantisation can make two adjacent ranks equal; it must never
+    // make a later rank better. Scanned in plain code, asserted once.
+    let firstBreak = -1;
+    let nans = 0;
     for (let rank = 1; rank < manifest.wordCount; rank++) {
-      expect(Number.isNaN(puzzle.similarityByRank[rank]!)).toBe(false);
-      // float16 quantisation can make two adjacent ranks equal; it must never
-      // make a later rank better.
-      expect(puzzle.similarityByRank[rank]!).toBeLessThanOrEqual(
-        puzzle.similarityByRank[rank - 1]!,
-      );
+      const here = puzzle.similarityByRank[rank]!;
+      if (Number.isNaN(here)) nans++;
+      if (firstBreak < 0 && here > puzzle.similarityByRank[rank - 1]!) {
+        firstBreak = rank;
+      }
     }
+    expect(nans, "NaN similarities").toBe(0);
+    expect(firstBreak, "similarity increases at this rank").toBe(-1);
   });
 
   it("agrees with the answer the pipeline recorded", () => {
